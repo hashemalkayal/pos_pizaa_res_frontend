@@ -1,22 +1,38 @@
 import type { FC } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FaEdit } from "react-icons/fa";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { FaEdit, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useQueryWithAxios } from "../../api/hooks";
-// import { toast } from "react-toastify";
+import { useQueryWithAxios, useMutationWithAxios } from "../../api/hooks";
+import { toast } from "react-toastify";
 import LoaderOverlay from "@/components/shared/LoaderOverlay";
 
 const Categories: FC = () => {
   const navigate = useNavigate();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const {
     data,
-    // refetch,
+    refetch,
     isPending: isPendingGetAll,
   } = useQueryWithAxios("item", "getAll");
 
-  // const { mutateAsync, isPending } = useMutationWithAxios("item", "delete");
+  const { mutateAsync, isPending } = useMutationWithAxios("item", "delete");
 
   const categories = data?.data.response || [];
 
@@ -28,18 +44,27 @@ const Categories: FC = () => {
     navigate("/categories/categories-edit", { state: { payload } });
   };
 
-  // const onDeletePress = async (id: number) => {
-  //   await mutateAsync(id, {
-  //     onSuccess: (res) => {
-  //       toast.success(res.data.message);
-  //       refetch();
-  //     },
-  //   });
-  // };
+  const openDeleteDialog = (id: number, itemName: string) => {
+    setItemToDelete({ id, name: itemName });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    await mutateAsync(itemToDelete.id, {
+      onSuccess: (res) => {
+        toast.success(res.data.message);
+        refetch();
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      },
+    });
+  };
 
   return (
     <>
-      <LoaderOverlay show={isPendingGetAll} />
+      <LoaderOverlay show={isPendingGetAll || isPending} />
 
       <div className="space-y-10">
         <h1 className="text-2xl font-bold text-dark">Categories</h1>
@@ -85,7 +110,7 @@ const Categories: FC = () => {
                       )}
                     </div>
 
-                    <div className="flex flex-wrap justify-end gap-2 mt-4">
+                    <div className="flex flex-wrap gap-2 mt-4">
                       <Button
                         onClick={() =>
                           onEditItemPress({
@@ -97,21 +122,23 @@ const Categories: FC = () => {
                           })
                         }
                         size="sm"
-                        className="bg-primary text-dark hover:opacity-90 flex items-center gap-2"
+                        variant="outline"
+                        className="flex-1 flex items-center justify-center gap-2"
                       >
-                        <FaEdit className="w-4 h-4" />
+                        <FaEdit className="w-3 h-3" />
                         Edit
                       </Button>
 
-                      {/* <Button
+                      <Button
                         disabled={isPending}
-                        onClick={() => onDeletePress(item.id)}
+                        onClick={() => openDeleteDialog(item.id, item.name)}
                         size="sm"
-                        className="bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
+                        variant="destructive"
+                        className="flex-1 flex items-center justify-center gap-2"
                       >
-                        <FaTrash className="w-4 h-4" />
+                        <FaTrash className="w-3 h-3" />
                         Delete
-                      </Button> */}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -120,6 +147,29 @@ const Categories: FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <strong>"{itemToDelete?.name}"</strong>? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
