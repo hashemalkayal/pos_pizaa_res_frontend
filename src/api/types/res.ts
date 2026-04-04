@@ -16,6 +16,16 @@ export interface ICategory {
   name: string;
 }
 
+export interface ICustomer {
+  id: number;
+  customerName: string;
+  customerNumber: string;
+  createdAt: string;
+  _count: {
+    orders: number;
+  };
+}
+
 export interface ICategoryWithItems {
   category: ICategory;
   items: IItem[];
@@ -46,6 +56,7 @@ export interface IOrderItem {
   quantity: number;
   itemId: number;
   orderId: number;
+  comment?: string;
 }
 
 export interface IChargeItemResponse {
@@ -55,6 +66,17 @@ export interface IChargeItemResponse {
   date: Date;
   totalAmount: number;
   userId: number;
+  orderNumber?: number;
+  paymentMethod?: string;
+  deliveryLocation?: string;
+  deliveryTime?: string;
+  deliveryPrice?: number;
+  customerId?: number;
+  customer?: {
+    id: number;
+    customerName: string;
+    customerNumber: string;
+  };
 }
 
 export interface IPaymentItem {

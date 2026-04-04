@@ -15,6 +15,7 @@ export interface ICreateItemPayload {
 export interface IItemsPayloadPayment {
   itemId: number;
   quantity: number;
+  comment?: string;
 }
 
 export interface ICalculateItemPayload {
@@ -30,6 +31,11 @@ export interface IChargeItemPayload {
   items: IItemsPayloadPayment[];
   paymentMethod: PaymentMethod;
   discount?: number;
+  customerName?: string;
+  customerNumber?: string;
+  deliveryLocation?: string;
+  deliveryTime?: string;
+  deliveryPrice?: number;
 }
 
 export interface IPaymentInfoQuery {

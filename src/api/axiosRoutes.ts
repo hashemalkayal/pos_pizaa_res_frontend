@@ -35,4 +35,8 @@ export const axiosRoute: IAxiosRoute = {
     getFinance: (query) =>
       axiosBaseApi.get("/payment/finance", { params: query }),
   },
+
+  customer: {
+    getAll: () => axiosBaseApi.get("/customer/all"),
+  },
 };

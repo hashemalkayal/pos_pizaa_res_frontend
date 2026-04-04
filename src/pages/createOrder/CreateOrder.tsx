@@ -20,10 +20,11 @@ export enum PaymentMethod {
 const CreateOrder: FC = () => {
   const [categories, setCategories] = useState<ICategoryWithItems[]>([]);
   const [selectedItems, setSelectedItems] = useState<Record<number, number>>(
-    {}
+    {},
   );
+  const [itemComments, setItemComments] = useState<Record<number, string>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-    PaymentMethod.CASH
+    PaymentMethod.CASH,
   );
   const [gotFromCustomer, setGotFromCustomer] = useState<string>("");
   const [applyed, setApplyed] = useState(false);
@@ -34,30 +35,50 @@ const CreateOrder: FC = () => {
   const [promoCode, setPromoCode] = useState<string>("");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Customer information
+  const [customerName, setCustomerName] = useState<string>("");
+  const [customerNumber, setCustomerNumber] = useState<string>("");
+
+  // Delivery information
+  const [deliveryLocation, setDeliveryLocation] = useState<string>("");
+  const [deliveryTime, setDeliveryTime] = useState<string>("");
+  const [deliveryPrice, setDeliveryPrice] = useState<string>("");
+
   const returnAmount = parseFloat(gotFromCustomer || "0") - totalPrice || 0;
 
   const { data, isPending: isPendingGetAll } = useQueryWithAxios(
     "item",
-    "getAll"
+    "getAll",
   );
   const { mutateAsync: calculateMutateAsync, isPending } = useMutationWithAxios(
     "item",
-    "calculate"
+    "calculate",
   );
   const { mutateAsync: chargeMutateAsync, isPending: chargeIsPending } =
     useMutationWithAxios("item", "charge");
 
   const getSelectedItemPayload = (): IItemsPayloadPayment[] =>
     Object.entries(selectedItems)
-      .map(([key, quantity]) => ({ itemId: Number(key), quantity }))
+      .map(([key, quantity]) => ({
+        itemId: Number(key),
+        quantity,
+        comment: itemComments[Number(key)] || undefined,
+      }))
       .filter(
         ({ itemId, quantity }) =>
-          Number.isFinite(itemId) && itemId > 0 && quantity > 0
+          Number.isFinite(itemId) && itemId > 0 && quantity > 0,
       );
 
   const closeDrawerHnadler = () => {
     setDrawerOpen(false);
     setPromoCode("");
+  };
+
+  const updateItemComment = (itemId: number, comment: string) => {
+    setItemComments((prev) => ({
+      ...prev,
+      [itemId]: comment,
+    }));
   };
 
   const onSelectPaymentMethod = (method: PaymentMethod) => {
@@ -87,7 +108,7 @@ const CreateOrder: FC = () => {
               setDiscountPercent(res.data.response.discountPercent);
             },
             onError: () => window.location.reload(),
-          }
+          },
         );
     }
   }, [drawerOpen, applyed]);
@@ -99,7 +120,7 @@ const CreateOrder: FC = () => {
   const updateQty = (
     itemId: number,
     type: "inc" | "dec" | "set",
-    value?: number
+    value?: number,
   ) => {
     setSelectedItems((prev) => {
       const currentQty = prev[itemId] || 0;
@@ -122,7 +143,7 @@ const CreateOrder: FC = () => {
       .map(([key, quantity]) => ({ itemId: Number(key), quantity }))
       .filter(
         ({ itemId, quantity }) =>
-          Number.isFinite(itemId) && itemId > 0 && quantity > 0
+          Number.isFinite(itemId) && itemId > 0 && quantity > 0,
       );
 
     await calculateMutateAsync(
@@ -138,32 +159,57 @@ const CreateOrder: FC = () => {
           setSelectedItems(tempItems);
         },
         onError: () => window.location.reload(),
-      }
+      },
     );
   };
 
   const cartItems = categories
     .flatMap((cat) => cat.items)
-    .filter((item) => selectedItems[item.id] > 0);
+    .filter((item) => selectedItems[item.id] > 0)
+    .map((item) => ({
+      ...item,
+      quantity: selectedItems[item.id],
+      comment: itemComments[item.id] || "",
+    }));
 
   const onChargeClick = async () => {
     const items = getSelectedItemPayload();
-    await chargeMutateAsync(
-      { items, discount: +promoCode, paymentMethod },
-      {
-        onSuccess: (res) => {
-          toast.success(res.data.message);
-          setPromoCode("");
-          setSelectedItems({});
-          setTotalPrice(0);
-          setBasePrice(0);
-          setDiscountAmount(0);
-          setDiscountPercent(0);
-          setApplyed(false);
-          setDrawerOpen(false);
-        },
-      }
-    );
+    const payload: any = {
+      items,
+      discount: +promoCode,
+      paymentMethod,
+    };
+
+    // Add customer info if provided
+    if (customerName) payload.customerName = customerName;
+    if (customerNumber) payload.customerNumber = customerNumber;
+
+    // Add delivery info if provided
+    if (deliveryLocation) payload.deliveryLocation = deliveryLocation;
+    if (deliveryTime) payload.deliveryTime = deliveryTime;
+    if (deliveryPrice) payload.deliveryPrice = parseFloat(deliveryPrice);
+
+    await chargeMutateAsync(payload, {
+      onSuccess: (res) => {
+        toast.success(res.data.message);
+        // Reset all form fields
+        setPromoCode("");
+        setSelectedItems({});
+        setItemComments({});
+        setTotalPrice(0);
+        setBasePrice(0);
+        setDiscountAmount(0);
+        setDiscountPercent(0);
+        setApplyed(false);
+        setDrawerOpen(false);
+        setCustomerName("");
+        setCustomerNumber("");
+        setDeliveryLocation("");
+        setDeliveryTime("");
+        setDeliveryPrice("");
+        setGotFromCustomer("");
+      },
+    });
   };
 
   const orderedCategories = [
@@ -270,14 +316,20 @@ const CreateOrder: FC = () => {
           promoCode={promoCode}
           onClose={closeDrawerHnadler}
           promoCodeHandler={promoCodeHandler}
-          items={cartItems.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: selectedItems[item.id],
-          }))}
+          items={cartItems}
           onCharge={onChargeClick}
           onRemoveItem={removeFromCart}
+          customerName={customerName}
+          customerNumber={customerNumber}
+          deliveryLocation={deliveryLocation}
+          deliveryTime={deliveryTime}
+          deliveryPrice={deliveryPrice}
+          setCustomerName={setCustomerName}
+          setCustomerNumber={setCustomerNumber}
+          setDeliveryLocation={setDeliveryLocation}
+          setDeliveryTime={setDeliveryTime}
+          setDeliveryPrice={setDeliveryPrice}
+          onUpdateItemComment={updateItemComment}
         />
       </div>
     </>

@@ -13,6 +13,7 @@ import type {
   ICategoryWithItems,
   IChargeItemResponse,
   ICreateItemResponse,
+  ICustomer,
   IDeleteItemResponse,
   IFinanceStatsResponse,
   ILoginResponse,
@@ -35,21 +36,21 @@ export interface IAuthRoute {
 export interface IItemRoute {
   getAll: () => IAxiosResponse<IAxiosData<ICategoryWithItems[]>>;
   create: (
-    payload: ICreateItemPayload
+    payload: ICreateItemPayload,
   ) => IAxiosResponse<IAxiosData<ICreateItemResponse>>;
 
   calculate: (
-    payload: ICalculateItemPayload
+    payload: ICalculateItemPayload,
   ) => IAxiosResponse<IAxiosData<ICalculateItemResponse>>;
 
   edit: (
-    payload: IEditItemPayload
+    payload: IEditItemPayload,
   ) => IAxiosResponse<IAxiosData<ICreateItemResponse>>;
 
   delete: (id: number) => IAxiosResponse<IAxiosData<IDeleteItemResponse>>;
 
   charge: (
-    payload: IChargeItemPayload
+    payload: IChargeItemPayload,
   ) => IAxiosResponse<IAxiosData<IChargeItemResponse>>;
 
   getTodayOrders: () => IAxiosResponse<IAxiosData<ITodayOrder[]>>;
@@ -59,18 +60,23 @@ export interface IItemRoute {
 
 export interface IPaymentRoute {
   getInfo: (
-    query?: IPaymentInfoQuery
+    query?: IPaymentInfoQuery,
   ) => IAxiosResponse<IAxiosData<IPaymentInfo[]>>;
 
   getStats: () => IAxiosResponse<IAxiosData<IPaymentStatsResponse>>;
 
   getFinance: (
-    query?: IFinanceQuery
+    query?: IFinanceQuery,
   ) => IAxiosResponse<IAxiosData<IFinanceStatsResponse>>;
+}
+
+export interface ICustomerRoute {
+  getAll: () => IAxiosResponse<IAxiosData<ICustomer[]>>;
 }
 
 export interface IAxiosRoute {
   auth: IAuthRoute;
   item: IItemRoute;
   payment: IPaymentRoute;
+  customer: ICustomerRoute;
 }
