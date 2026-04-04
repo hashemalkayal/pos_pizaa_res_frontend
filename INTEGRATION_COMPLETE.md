@@ -9,6 +9,7 @@ All new features from the backend API have been successfully integrated into you
 ## ✅ What's Been Implemented
 
 ### 1. **Type Definitions Updated**
+
 - ✅ Added `ICustomer` interface in [src/api/types/res.ts](src/api/types/res.ts)
 - ✅ Updated `IItemsPayloadPayment` to include optional `comment` field
 - ✅ Updated `IChargeItemPayload` with customer and delivery fields:
@@ -21,19 +22,23 @@ All new features from the backend API have been successfully integrated into you
 - ✅ Updated `IChargeItemResponse` with customer and delivery response fields
 
 ### 2. **API Routes Added**
+
 - ✅ New endpoint: `GET /api/customer/all` in [src/api/axiosRoutes.ts](src/api/axiosRoutes.ts)
 - ✅ Created `ICustomerRoute` interface in [src/api/types/types.types.ts](src/api/types/types.types.ts)
 
 ### 3. **New Component: CustomerDropdown**
+
 📁 [src/components/shared/CustomerDropdown.tsx](src/components/shared/CustomerDropdown.tsx)
 
 **Features:**
+
 - 🔍 Searchable dropdown showing all existing customers
 - 🔄 Toggle between selecting existing customer or entering new customer manually
 - 📊 Shows customer name, phone number, and order count
 - ✨ Auto-fills customer name and phone when selected
 
 **Usage:**
+
 ```tsx
 <CustomerDropdown
   onSelect={handleCustomerSelect}
@@ -44,9 +49,11 @@ All new features from the backend API have been successfully integrated into you
 ```
 
 ### 4. **Updated: CreateOrder Component**
+
 📁 [src/pages/createOrder/CreateOrder.tsx](src/pages/createOrder/CreateOrder.tsx)
 
 **New State Variables:**
+
 ```tsx
 // Customer information
 const [customerName, setCustomerName] = useState<string>("");
@@ -62,26 +69,31 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 ```
 
 **New Functions:**
+
 - `updateItemComment(itemId, comment)` - Updates special instructions for each item
 - Enhanced `getSelectedItemPayload()` - Now includes item comments
 - Enhanced `onChargeClick()` - Sends customer and delivery data to backend
 
 ### 5. **Updated: CartDrawer Component**
+
 📁 [src/pages/createOrder/CartDrawer/CartDrawer.tsx](src/pages/createOrder/CartDrawer/CartDrawer.tsx)
 
 **New UI Sections:**
 
 #### 📱 Customer Information Section
+
 - Customer dropdown with search/autocomplete
 - Manual entry fields for new customers (name + phone)
 - Toggle button to switch between existing/new customer
 
 #### 🚚 Delivery Information Section
+
 - Delivery location (textarea for full address)
 - Delivery time (e.g., "7:00 PM")
 - Delivery price (with JD currency indicator)
 
 #### 📝 Item Comments Section
+
 - Each cart item now has a comment input field
 - Allows special instructions like "Extra cheese", "No onions", etc.
 
@@ -128,7 +140,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
   ],
   discount: 10,
   paymentMethod: "CASH",
-  
+
   // NEW FIELDS (all optional)
   customerName: "Ahmad Mohammed",
   customerNumber: "+962-777-123456",
@@ -148,9 +160,9 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
     customerName: "Ahmad Mohammed",
     customerNumber: "+962-777-123456",
     createdAt: "2026-04-01T10:30:00.000Z",
-    _count: { orders: 15 }
-  }
-]
+    _count: { orders: 15 },
+  },
+];
 ```
 
 ---
@@ -170,6 +182,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 ## ✨ Key Features
 
 ### 🎨 User Experience Improvements:
+
 - **Searchable customer dropdown** with real-time filtering
 - **Auto-fill functionality** when selecting existing customers
 - **Per-item comments** for special instructions
@@ -178,6 +191,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 - **Responsive design** with scrollable sections
 
 ### 🔧 Technical Features:
+
 - **Backward compatible** - All new fields are optional
 - **Type-safe** - Full TypeScript support
 - **Clean state management** - Resets all fields after successful order
@@ -189,6 +203,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 ## 🧪 Testing Checklist
 
 ### Customer Management:
+
 - ✅ Customer dropdown loads all customers from API
 - ✅ Search filters customers by name and phone number
 - ✅ Selecting customer auto-fills name and phone fields
@@ -197,6 +212,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 - ✅ Customer info is sent with order
 
 ### Delivery Management:
+
 - ✅ Can enter delivery location (address)
 - ✅ Can specify delivery time
 - ✅ Can set delivery price (with number validation)
@@ -204,12 +220,14 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 - ✅ Delivery info is sent with order
 
 ### Item Comments:
+
 - ✅ Each item has its own comment field
 - ✅ Comments are preserved in cart
 - ✅ Comments are sent with order items
 - ✅ Can add/edit/clear comments
 
 ### Order Flow:
+
 - ✅ Can create order without customer info (backward compatible)
 - ✅ Can create order with customer but without delivery
 - ✅ Can create order with all fields
@@ -221,6 +239,7 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
 ## 🚀 Next Steps
 
 ### Ready to Test:
+
 1. Start your development server: `npm run dev` or `yarn dev`
 2. Navigate to the "Create Order" page
 3. Try creating orders with different combinations:
@@ -230,7 +249,9 @@ const [itemComments, setItemComments] = useState<Record<number, string>>({});
    - Full order with all fields
 
 ### Backend Requirements:
+
 Make sure your backend is running and has:
+
 - ✅ `GET /api/customer/all` endpoint implemented
 - ✅ `POST /api/item/charge` endpoint updated to accept new fields
 - ✅ Customer model created in database
@@ -252,6 +273,7 @@ If you encounter any issues:
 ## 🎊 Success!
 
 Your POS system now supports:
+
 - ✅ Customer management with autocomplete
 - ✅ Delivery information tracking
 - ✅ Item-level special instructions

@@ -8,7 +8,9 @@ import type { ICustomer } from "@/api/types/res";
 // ============================================
 
 function OrderFormExample() {
-  const [selectedCustomer, setSelectedCustomer] = useState<ICustomer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<ICustomer | null>(
+    null,
+  );
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerNumber, setCustomerNumber] = useState("");
@@ -280,7 +282,7 @@ function CustomerSearchExample() {
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.customerNumber.includes(searchTerm)
+      customer.customerNumber.includes(searchTerm),
   );
 
   return (
