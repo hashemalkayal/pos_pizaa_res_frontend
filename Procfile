@@ -1,0 +1,1 @@
+web: caddy run --config /app/Caddyfile
