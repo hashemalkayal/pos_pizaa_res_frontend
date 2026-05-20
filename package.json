@@ -7,6 +7,7 @@
     "dev:staging": "vite --mode staging",
     "dev": "vite --mode dev",
     "build": "tsc -b && vite build --mode staging",
+    "start": "serve -s dist -l $PORT",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -36,6 +37,7 @@
     "react-router-dom": "^7.6.0",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.3",
+    "serve": "^14.2.6",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7",
     "xlsx": "^0.18.5"
