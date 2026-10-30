@@ -112,9 +112,25 @@ export interface Order extends OrderTotals {
   kitchenPrint: KitchenPrint;
 }
 
+/** A list row: the order header with `itemCount` instead of `items`. */
+export type OrderListItem = Omit<Order, "items"> & { itemCount: number };
+
+export interface Page<T> {
+  items: T[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
+/** GET /api/orders filters used by the POS (backend: orderListQuery). */
+export interface OrderListQuery {
+  businessDate?: string;
+  createdByUserId?: number;
+  type?: "POS" | "EXTERNAL";
+  pageSize?: number;
+}
+
 /** Server-authoritative prices and totals for a cart (nothing is saved). */
-export const quoteOrder = async (body: QuoteRequest): Promise<OrderQuote> =>
-  unwrap(await http.post<ApiEnvelope<OrderQuote>>("/orders/quote", body));
+export const quoteOrder = async (body: QuoteRequest, signal?: AbortSignal): Promise<OrderQuote> =>
+  unwrap(await http.post<ApiEnvelope<OrderQuote>>("/orders/quote", body, { signal }));
 
 /**
  * Creates and prints a POS order (201). The backend has no idempotency for POS orders, so the UI must block
@@ -122,3 +138,10 @@ export const quoteOrder = async (body: QuoteRequest): Promise<OrderQuote> =>
  */
 export const createOrder = async (body: CreateOrderRequest): Promise<Order> =>
   unwrap(await http.post<ApiEnvelope<Order>>("/orders", body));
+
+export const getOrder = async (id: number, signal?: AbortSignal): Promise<Order> =>
+  unwrap(await http.get<ApiEnvelope<Order>>(`/orders/${id}`, { signal }));
+
+/** Newest first. */
+export const listOrders = async (query: OrderListQuery, signal?: AbortSignal): Promise<Page<OrderListItem>> =>
+  unwrap(await http.get<ApiEnvelope<Page<OrderListItem>>>("/orders", { params: query, signal }));

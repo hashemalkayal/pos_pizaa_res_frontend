@@ -21,7 +21,7 @@ export interface AppSection {
 
 /** Only sections backed by a V2 API. No Settings/Users/Printers screens (no backend support). */
 export const APP_SECTIONS: AppSection[] = [
-  { id: "pos", path: "/pos", labelKey: "nav.pos", icon: IconCashRegister, plannedPhase: 2 },
+  { id: "pos", path: "/pos", labelKey: "nav.pos", icon: IconCashRegister },
   { id: "orders", path: "/orders", labelKey: "nav.orders", icon: IconReceipt, plannedPhase: 3 },
   { id: "customers", path: "/customers", labelKey: "nav.customers", icon: IconUsers, plannedPhase: 3 },
   // `/menu` is the public menu page, so menu management lives at `/catalog`.

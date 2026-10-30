@@ -5,11 +5,21 @@ import i18n from "@/i18n";
 import { resetMockState } from "@/mocks/handlers";
 import { server } from "./server";
 
+/** `(min-width: …)` / `(max-width: …)` against the window width (jsdom: 1024px); anything else does not match. */
+const evaluateMediaQuery = (query: string) => {
+  const conditions = [...query.matchAll(/\((min|max)-width:\s*([\d.]+)(px|em|rem)\)/g)];
+  if (!conditions.length) return false;
+  return conditions.every(([, kind, amount, unit]) => {
+    const pixels = Number(amount) * (unit === "px" ? 1 : 16);
+    return kind === "min" ? window.innerWidth >= pixels : window.innerWidth <= pixels;
+  });
+};
+
 // jsdom gaps that Mantine relies on.
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
+    matches: evaluateMediaQuery(query),
     media: query,
     onchange: null,
     addListener: vi.fn(),

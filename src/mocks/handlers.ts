@@ -2,6 +2,7 @@ import { http, HttpResponse } from "msw";
 import { buildMockToken, readMockToken } from "./jwt";
 import { MOCK_CATALOG } from "./fixtures/catalog";
 import { MOCK_USERS } from "./fixtures/users";
+import * as store from "./orderStore";
 
 /**
  * DEVELOPMENT/TEST ONLY. Each handler reproduces the backend V2 contract for one route: status codes,
@@ -30,7 +31,38 @@ const LOGIN_WINDOW_SECONDS = 15 * 60;
 const MAX_FAILURES_PER_EMAIL = 5;
 const failures = new Map<string, { count: number; resetAt: number }>();
 
-export const resetMockState = () => failures.clear();
+export const resetMockState = () => {
+  failures.clear();
+  store.resetOrderStore();
+};
+
+/** Runs a store operation; a MockError becomes the backend's AppError body. */
+const attempt = (run: () => Response) => {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof store.MockError) return appError(error.status, error.code, error.message, error.details);
+    throw error;
+  }
+};
+
+const readJson = (request: Request): Promise<unknown> => request.json().catch(() => ({}));
+
+/** parseIdParam(): anything but a positive integer → 404 with the route's not-found code. */
+const routeId = (value: string | readonly string[] | undefined, code: string) => {
+  const id = typeof value === "string" && /^[1-9]d{0,9}$/.test(value) ? Number(value) : null;
+  if (id === null) throw new store.MockError(404, code, "The record was not found.");
+  return id;
+};
+
+/** pageQuery: 1 ≤ pageSize ≤ 200, default 50. */
+const pageSizeOf = (url: URL) => {
+  const value = url.searchParams.get("pageSize");
+  if (value === null) return 50;
+  const size = Number(value);
+  if (!Number.isInteger(size) || size < 1 || size > 200) throw new store.MockError(422, "VALIDATION_ERROR", "The request is invalid.", { errors: [{ field: "pageSize", message: "pageSize must be between 1 and 200" }] });
+  return size;
+};
 
 export const handlers = [
   http.post("*/api/auth/login", async ({ request }) => {
@@ -76,5 +108,64 @@ export const handlers = [
     const auth = authenticate(request);
     if (auth.error) return auth.error;
     return envelope(MOCK_CATALOG, "Catalog fetched.");
+  }),
+
+  http.post("*/api/orders/quote", async ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(store.quote(store.validateQuote(body)), "Order priced."));
+  }),
+
+  http.post("*/api/orders", async ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    const user = MOCK_USERS.find((candidate) => candidate.id === auth.claims.userId);
+    return attempt(() => envelope(store.createOrder(store.validateCreate(body), { id: auth.claims.userId, name: user?.name ?? null }), "Order created.", 201));
+  }),
+
+  http.get("*/api/orders", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const url = new URL(request.url);
+    const number = (name: string) => (url.searchParams.has(name) ? Number(url.searchParams.get(name)) : undefined);
+    return attempt(() =>
+      envelope(
+        store.listOrders({
+          createdByUserId: number("createdByUserId"),
+          type: url.searchParams.get("type") ?? undefined,
+          businessDate: url.searchParams.get("businessDate") ?? undefined,
+          pageSize: pageSizeOf(url),
+        }),
+        "Orders fetched."
+      )
+    );
+  }),
+
+  http.get("*/api/orders/:id", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(store.findOrder(routeId(params.id, "ORDER_NOT_FOUND")), "Order fetched."));
+  }),
+
+  http.get("*/api/customers", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const url = new URL(request.url);
+    return attempt(() => envelope(store.searchCustomers(url.searchParams.get("q"), pageSizeOf(url)), "Customers fetched."));
+  }),
+
+  http.post("*/api/customers", async ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(store.createCustomer(store.validateCustomer(body)), "Customer created.", 201));
+  }),
+
+  http.get("*/api/customers/:id", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(store.findCustomer(routeId(params.id, "CUSTOMER_NOT_FOUND")), "Customer fetched."));
   }),
 ];

@@ -23,12 +23,14 @@ export const AppLayout = () => {
   const [opened, { toggle, close }] = useDisclosure(false);
   const sections = sectionsForRole(session?.user.role);
   const current = sectionForPath(pathname);
+  // The cashier screen fills the workspace edge to edge; its columns scroll on their own.
+  const fullBleed = pathname === "/pos";
 
   return (
     <AppShell
       header={{ height: 64 }}
       navbar={{ width: NAVBAR_WIDTH, breakpoint: "sm", collapsed: { mobile: !opened } }}
-      padding={{ base: "md", md: "xl" }}
+      padding={fullBleed ? 0 : { base: "md", md: "xl" }}
       classNames={{ header: classes.header, navbar: classes.navbar, main: classes.main }}
     >
       <AppShell.Header>

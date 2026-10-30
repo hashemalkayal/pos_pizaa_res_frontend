@@ -1,0 +1,486 @@
+import { memo } from "react";
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Loader,
+  ScrollArea,
+  SegmentedControl,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
+} from "@mantine/core";
+import {
+  IconArmchair,
+  IconChevronDown,
+  IconPencil,
+  IconShoppingBag,
+  IconTrash,
+  IconTruckDelivery,
+} from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
+import type { OrderLine } from "@/api/v2/orders";
+import { CurrencyText } from "@/components/money/CurrencyText";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { itemCount, type CartLine } from "../model/cart";
+import { selectedAddOns, type CatalogIndex } from "../model/catalogView";
+import {
+  MAX_LOCATION_LENGTH,
+  type DraftProblem,
+  type OrderDraft,
+  type ServiceType,
+} from "../model/orderDraft";
+import type { QuoteState } from "../hooks/queries";
+import { useLocalized } from "../hooks/useLocalized";
+import { CustomerPicker } from "./CustomerPicker";
+import { DecimalInput } from "./DecimalInput";
+import { DeliveryTimeInput } from "./DeliveryTimeInput";
+import { QuantityStepper } from "./QuantityStepper";
+import { quoteErrorKey } from "./quoteErrors";
+import classes from "../Pos.module.css";
+
+/** The quote line for this cart line, when the shown quote was made for the same configuration. */
+const quoteLineFor = (line: CartLine, quoteLine: OrderLine | undefined) => {
+  if (
+    !quoteLine ||
+    quoteLine.variantId !== line.variantId ||
+    quoteLine.quantity !== line.quantity
+  )
+    return undefined;
+  const ids = quoteLine.addOns
+    .map((addOn) => addOn.addOnId)
+    .sort((a, b) => a - b);
+  if (
+    ids.length !== line.addOnIds.length ||
+    ids.some((id, index) => id !== line.addOnIds[index])
+  )
+    return undefined;
+  return (quoteLine.comment ?? null) === line.comment ? quoteLine : undefined;
+};
+
+interface CartLineRowProps {
+  line: CartLine;
+  index: CatalogIndex | null;
+  /** Backend line total; null while it is not known for this exact line. */
+  lineTotal: string | null;
+  stale: boolean;
+  onEdit: (key: string) => void;
+  onRemove: (key: string) => void;
+  onQuantity: (key: string, quantity: number) => void;
+}
+
+const CartLineRow = memo(
+  ({
+    line,
+    index,
+    lineTotal,
+    stale,
+    onEdit,
+    onRemove,
+    onQuantity,
+  }: CartLineRowProps) => {
+    const { t } = useTranslation();
+    const { name, pick } = useLocalized();
+    const entry = index?.variants.get(line.variantId);
+    const productName = entry ? name(entry.product) : `#${line.variantId}`;
+    const variantLabel = entry
+      ? pick(entry.variant.labelEn, entry.variant.labelAr)
+      : "";
+    const addOns = entry ? selectedAddOns(entry.product, line.addOnIds) : [];
+    return (
+      <li className={classes.line}>
+        <div className={classes.lineTop}>
+          <div style={{ minWidth: 0 }}>
+            <div className={classes.lineName}>{productName}</div>
+            {variantLabel || addOns.length ? (
+              <div className={classes.lineMeta}>
+                {[variantLabel, ...addOns.map((addOn) => `+ ${name(addOn)}`)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            ) : null}
+            {line.comment ? (
+              <div className={classes.lineNote}>“{line.comment}”</div>
+            ) : null}
+          </div>
+          {lineTotal ? (
+            <CurrencyText
+              value={lineTotal}
+              fw={700}
+              size="sm"
+              className={`${classes.money} ${stale ? classes.summaryStale : ""}`}
+            />
+          ) : (
+            <Skeleton height={14} width={64} radius="sm" />
+          )}
+        </div>
+        <div className={classes.lineBottom}>
+          <QuantityStepper
+            value={line.quantity}
+            onChange={(quantity) => onQuantity(line.key, quantity)}
+            decreaseLabel={t("pos.cart.decrease", { name: productName })}
+            increaseLabel={t("pos.cart.increase", { name: productName })}
+            valueLabel={t("pos.cart.quantityOf", {
+              quantity: line.quantity,
+              name: productName,
+            })}
+          />
+          <Group gap={2}>
+            <Tooltip label={t("pos.cart.edit", { name: productName })}>
+              <ActionIcon
+                variant="subtle"
+                color="charcoal"
+                onClick={() => onEdit(line.key)}
+                aria-label={t("pos.cart.edit", { name: productName })}
+              >
+                <IconPencil size={17} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label={t("pos.cart.remove", { name: productName })}>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                onClick={() => onRemove(line.key)}
+                aria-label={t("pos.cart.remove", { name: productName })}
+              >
+                <IconTrash size={17} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </div>
+      </li>
+    );
+  },
+);
+CartLineRow.displayName = "CartLineRow";
+
+interface CartPanelProps {
+  lines: CartLine[];
+  index: CatalogIndex | null;
+  quote: QuoteState;
+  draft: OrderDraft;
+  problems: DraftProblem[];
+  canCheckout: boolean;
+  /** Narrow screens: the cart is a bottom sheet. */
+  open: boolean;
+  onCloseSheet: () => void;
+  onEditLine: (key: string) => void;
+  onRemoveLine: (key: string) => void;
+  onQuantity: (key: string, quantity: number) => void;
+  onClear: () => void;
+  onDraft: (patch: Partial<OrderDraft>) => void;
+  onDelivery: (patch: Partial<OrderDraft["delivery"]>) => void;
+  onCheckout: () => void;
+}
+
+export const CartPanel = ({
+  lines,
+  index,
+  quote,
+  draft,
+  problems,
+  canCheckout,
+  open,
+  onCloseSheet,
+  onEditLine,
+  onRemoveLine,
+  onQuantity,
+  onClear,
+  onDraft,
+  onDelivery,
+  onCheckout,
+}: CartPanelProps) => {
+  const { t } = useTranslation();
+  const shownQuote =
+    quote.status === "current" || quote.status === "updating"
+      ? quote.quote
+      : null;
+  const stale = quote.status !== "current";
+  const count = itemCount(lines);
+
+  return (
+    <aside
+      className={classes.cart}
+      data-open={open || undefined}
+      aria-label={t("pos.cart.title")}
+    >
+      <div className={classes.cartHeader}>
+        <Group gap="xs" wrap="nowrap">
+          <Title order={2} size="h4">
+            {t("pos.cart.title")}
+          </Title>
+          {count ? (
+            <Text size="sm" c="dimmed">
+              {t("pos.cart.items", { count })}
+            </Text>
+          ) : null}
+        </Group>
+        <Group gap={4} wrap="nowrap">
+          {lines.length ? (
+            <Button
+              variant="subtle"
+              color="red"
+              size="compact-sm"
+              leftSection={<IconTrash size={15} />}
+              onClick={onClear}
+            >
+              {t("pos.cart.clear")}
+            </Button>
+          ) : null}
+          <ActionIcon
+            hiddenFrom="md"
+            variant="subtle"
+            color="charcoal"
+            onClick={onCloseSheet}
+            aria-label={t("pos.cart.mobileClose")}
+          >
+            <IconChevronDown size={20} />
+          </ActionIcon>
+        </Group>
+      </div>
+
+      <div className={classes.cartService}>
+        <SegmentedControl
+          fullWidth
+          radius="md"
+          aria-label={t("pos.service.label")}
+          value={draft.serviceType}
+          onChange={(value) => onDraft({ serviceType: value as ServiceType })}
+          data={[
+            {
+              value: "DINE_IN",
+              label: (
+                <Group gap={6} justify="center" wrap="nowrap">
+                  <IconArmchair size={16} aria-hidden />
+                  {t("pos.service.DINE_IN")}
+                </Group>
+              ),
+            },
+            {
+              value: "DELIVERY",
+              label: (
+                <Group gap={6} justify="center" wrap="nowrap">
+                  <IconTruckDelivery size={16} aria-hidden />
+                  {t("pos.service.DELIVERY")}
+                </Group>
+              ),
+            },
+          ]}
+        />
+      </div>
+
+      <ScrollArea className={classes.cartScroll} type="auto" scrollbarSize={6}>
+        <div className={classes.cartBody}>
+          {lines.length ? (
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+              aria-label={t("pos.cart.title")}
+            >
+              {lines.map((line, position) => {
+                const quoted = quoteLineFor(line, shownQuote?.items[position]);
+                return (
+                  <CartLineRow
+                    key={line.key}
+                    line={line}
+                    index={index}
+                    lineTotal={quoted?.lineTotal ?? null}
+                    stale={stale}
+                    onEdit={onEditLine}
+                    onRemove={onRemoveLine}
+                    onQuantity={onQuantity}
+                  />
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={<IconShoppingBag size={26} stroke={1.6} />}
+              title={t("pos.cart.empty")}
+              description={t("pos.cart.emptyHint")}
+            />
+          )}
+
+          <section
+            className={classes.details}
+            aria-label={t("pos.cart.details")}
+          >
+            <CustomerPicker
+              customer={draft.customer}
+              onChange={(customer) => onDraft({ customer })}
+            />
+
+            {draft.serviceType === "DELIVERY" ? (
+              <>
+                <TextInput
+                  label={t("pos.delivery.location")}
+                  placeholder={t("pos.delivery.locationPlaceholder")}
+                  withAsterisk
+                  value={draft.delivery.location}
+                  maxLength={MAX_LOCATION_LENGTH}
+                  onChange={(event) =>
+                    onDelivery({ location: event.currentTarget.value })
+                  }
+                />
+                <Group grow align="flex-start" gap="sm">
+                  <DeliveryTimeInput
+                    value={draft.delivery.time}
+                    onChange={(time, timeIncomplete) =>
+                      onDelivery({ time, timeIncomplete })
+                    }
+                  />
+                  <DecimalInput
+                    label={t("pos.delivery.fee")}
+                    description={t("pos.delivery.feeHint")}
+                    withAsterisk
+                    integerDigits={7}
+                    fractionDigits={3}
+                    placeholder="0.000"
+                    value={draft.delivery.fee}
+                    onChange={(fee) => onDelivery({ fee })}
+                    rightSection={
+                      <Text size="xs" c="dimmed">
+                        {t("currency.jod")}
+                      </Text>
+                    }
+                    rightSectionWidth={44}
+                  />
+                </Group>
+              </>
+            ) : null}
+
+            <DecimalInput
+              label={t("pos.discount.label")}
+              description={t("pos.discount.hint")}
+              integerDigits={3}
+              fractionDigits={2}
+              placeholder="0"
+              value={draft.discountPercent}
+              onChange={(discountPercent) => onDraft({ discountPercent })}
+              rightSection={
+                <Text size="sm" c="dimmed">
+                  %
+                </Text>
+              }
+              maw={180}
+            />
+          </section>
+        </div>
+      </ScrollArea>
+
+      <div className={classes.cartFooter}>
+        {shownQuote ? (
+          <Stack
+            gap={4}
+            className={stale ? classes.summaryStale : undefined}
+            aria-live="polite"
+          >
+            <div className={classes.summaryRow}>
+              <Text size="sm">{t("pos.summary.subtotal")}</Text>
+              <CurrencyText
+                value={shownQuote.subtotal}
+                size="sm"
+                className={classes.money}
+              />
+            </div>
+            {Number(shownQuote.discountPercent) > 0 ? (
+              <div className={classes.summaryRow}>
+                <Text size="sm">
+                  {t("pos.summary.discount", {
+                    percent: shownQuote.discountPercent.replace(/\.?0+$/, ""),
+                  })}
+                </Text>
+                <Text size="sm" className={classes.money}>
+                  − <CurrencyText value={shownQuote.discountAmount} inherit />
+                </Text>
+              </div>
+            ) : null}
+            {draft.serviceType === "DELIVERY" ? (
+              <div className={classes.summaryRow}>
+                <Text size="sm">{t("pos.summary.delivery")}</Text>
+                <CurrencyText
+                  value={shownQuote.deliveryPrice}
+                  size="sm"
+                  className={classes.money}
+                />
+              </div>
+            ) : null}
+            <div className={`${classes.summaryRow} ${classes.summaryTotal}`}>
+              <span>{t("pos.summary.total")}</span>
+              <CurrencyText
+                value={shownQuote.totalAmount}
+                inherit
+                className={classes.money}
+              />
+            </div>
+          </Stack>
+        ) : null}
+        {quote.status === "updating" || quote.status === "loading" ? (
+          <Group gap="xs" c="dimmed">
+            <Loader size={14} />
+            <Text size="xs">{t("pos.summary.updating")}</Text>
+          </Group>
+        ) : null}
+        {quote.status === "error" ? (
+          <Alert
+            color="red"
+            variant="light"
+            p="xs"
+            title={t("pos.summary.error")}
+            role="alert"
+          >
+            <Group justify="space-between" gap="xs">
+              <Text size="xs">{t(quoteErrorKey(quote.error))}</Text>
+              <Button
+                size="compact-xs"
+                variant="white"
+                color="red"
+                onClick={quote.retry}
+              >
+                {t("pos.summary.retry")}
+              </Button>
+            </Group>
+          </Alert>
+        ) : null}
+        {lines.length && problems.length ? (
+          <Stack gap={2} role="status">
+            {problems.map((problem) => (
+              <Text key={problem} size="xs" c="orange.8">
+                {t(`pos.problems.${problem}`)}
+              </Text>
+            ))}
+          </Stack>
+        ) : null}
+        <Button
+          className={classes.checkout}
+          size="lg"
+          radius="md"
+          fullWidth
+          disabled={!canCheckout}
+          onClick={onCheckout}
+        >
+          {/* One inline span: the button label is a flex box, which would drop the spaces around "·". */}
+          <span>
+            {t("pos.cart.checkout")}
+            {quote.status === "current" ? (
+              <>
+                {" · "}
+                <CurrencyText value={quote.quote.totalAmount} inherit />
+              </>
+            ) : null}
+          </span>
+        </Button>
+      </div>
+    </aside>
+  );
+};

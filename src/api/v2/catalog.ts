@@ -81,5 +81,5 @@ export interface CatalogVariant {
   archivedAt: string | null;
 }
 
-export const getCatalog = async (): Promise<CatalogCategory[]> =>
-  unwrap(await http.get<ApiEnvelope<CatalogCategory[]>>("/catalog"));
+export const getCatalog = async (signal?: AbortSignal): Promise<CatalogCategory[]> =>
+  unwrap(await http.get<ApiEnvelope<CatalogCategory[]>>("/catalog", { signal }));

@@ -3,6 +3,6 @@
  * Roles follow the backend enum (ADMIN, CASHER).
  */
 export const MOCK_USERS = [
-  { id: 1, email: "admin@mock.local", password: "mock-admin", role: "ADMIN" },
-  { id: 2, email: "cashier@mock.local", password: "mock-cashier", role: "CASHER" },
+  { id: 1, name: "Mock Admin", email: "admin@mock.local", password: "mock-admin", role: "ADMIN" },
+  { id: 2, name: "Mock Cashier", email: "cashier@mock.local", password: "mock-cashier", role: "CASHER" },
 ] as const;
