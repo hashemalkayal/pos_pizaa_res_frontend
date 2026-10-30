@@ -1,54 +1,53 @@
-# React + TypeScript + Vite
+# Engineers Pizza POS — frontend (V2)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The staff POS for Engineers Pizza: React 18, Vite, TypeScript, Mantine 8, TanStack Query, Axios, React Router, i18next (English / Arabic, RTL).
 
-Currently, two official plugins are available:
+Branch `v2` is the V2 rebuild. It talks **only** to the backend V2 API, so it goes live together with the backend cutover. `main` keeps the current POS until then.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Scripts
 
-## Expanding the ESLint configuration
+| Command | What it does |
+|---|---|
+| `yarn dev:mock` | Dev server with every API call answered by MSW mocks (no backend needed). An orange **Mock data** badge is always shown. |
+| `yarn dev` / `yarn dev:staging` | Dev server against the backend in `.env.dev` / `.env.staging` |
+| `yarn build` | Type-check and production build (`--mode staging`); mocks are never included |
+| `yarn typecheck` · `yarn lint` · `yarn test` | Checks; tests run on Vitest + Testing Library + MSW |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+**Mock sign-in (development fixtures, not real accounts):** `admin@mock.local` / `mock-admin` and `cashier@mock.local` / `mock-cashier`.
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Rules the code follows
+
+- **The backend V2 contract is the only source of truth.** Every DTO in `src/api/v2` and every mock in `src/mocks` mirrors the backend's routes, serializers and error bodies. Legacy endpoints (`/api/item`, `/api/payment`, `/api/customer`) are never called.
+- **Mocks are development-only:** started only by `yarn dev:mock`, and absent from production builds.
+- **Money:** backend strings, shown as JOD with exactly 3 decimals (`src/lib/money.ts`); never floating-point arithmetic. Totals come from the server (`/api/orders/quote`).
+- **Session:** 15-day JWT. Any 401 clears the session and returns to sign-in with the reason. Reports and Finance are hidden from non-admins as a navigation rule only; the backend does not enforce roles (D30).
+- **Logo:** the official `src/assets/logo.png`, unmodified.
+
+## Layout
+
+```
+src/
+  app/          providers, routes, navigation, query client
+  api/          axios client, error model, typed V2 endpoints (src/api/v2)
+  features/     feature areas (auth: session, sign-in, route guards)
+  components/   shared UI (layout, feedback states, money)
+  i18n/         i18next setup and en/ar resources
+  theme/        Mantine theme and brand tokens
+  mocks/        MSW handlers and labelled fixtures (development/test only)
+  public-site/  public Landing and Menu pages (kept from the previous app, isolated)
+  test/         test setup and helpers
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Rebuild status
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The previous screens remain on `main`. Each is rebuilt on V2 data in the phase shown:
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+| Previous screen | V2 section | Phase |
+|---|---|---|
+| Login | Sign-in | 1 — done |
+| Create Order (cart, comments, discount, payment, customer, delivery, change calculator) | POS | 2 |
+| Orders History (today, delete → void, print) | Orders (edit, void, print, EXTERNAL orders) | 3 |
+| Customer dropdown | Customers | 3 |
+| Categories (item add/edit/delete) | Menu (categories, products, variants, add-ons) | 4 |
+| Home dashboard, Reports, Finance | Reports and Finance (V2 reports, CSV export) | 5 |
+| Landing, Menu (public) | Kept as they are (redesign deferred) | — |

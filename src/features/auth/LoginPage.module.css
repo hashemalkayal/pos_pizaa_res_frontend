@@ -1,0 +1,88 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  background-color: var(--ep-canvas);
+}
+
+/* The official logo has a charcoal background, so it sits on the same charcoal. */
+.brandPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 48px;
+  background-color: var(--ep-charcoal);
+  overflow: hidden;
+}
+
+.brandPanel::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 6px;
+  background-color: var(--ep-yellow);
+}
+
+.logo {
+  width: min(440px, 100%);
+}
+
+.tagline {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--mantine-font-size-lg);
+  letter-spacing: 0.02em;
+}
+
+.formPanel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 24px 48px;
+}
+
+.toolbar {
+  position: absolute;
+  top: 20px;
+  inset-inline-end: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--ep-card);
+}
+
+@media (max-width: $mantine-breakpoint-md) {
+  .page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .brandPanel {
+    padding: 28px 16px 32px;
+    gap: 8px;
+  }
+
+  .logo {
+    width: min(300px, 80%);
+  }
+
+  .tagline {
+    font-size: var(--mantine-font-size-sm);
+  }
+
+  .formPanel {
+    align-items: flex-start;
+    padding: 64px 16px 32px;
+  }
+
+  .toolbar {
+    top: 16px;
+    inset-inline-end: 16px;
+  }
+}

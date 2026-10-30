@@ -1,0 +1,10 @@
+.state {
+  padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+  min-height: 280px;
+  justify-content: center;
+}
+
+.loading {
+  min-height: 200px;
+  justify-content: center;
+}

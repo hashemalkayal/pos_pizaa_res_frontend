@@ -1,0 +1,128 @@
+.header {
+  background-color: var(--ep-card);
+  border-bottom: 1px solid var(--ep-border);
+}
+
+.headerInner {
+  display: flex;
+  height: 100%;
+}
+
+/* The top of the charcoal column: brand cell above the navigation (tablet and desktop). */
+.headerBrand {
+  --ep-focus: var(--ep-yellow);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 20px;
+  background-color: var(--ep-charcoal);
+
+  @media (max-width: $mantine-breakpoint-sm) {
+    display: none;
+  }
+}
+
+.headerLogo {
+  height: 46px;
+  width: auto;
+  max-width: 100%;
+}
+
+.headerMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.headerTitle {
+  color: var(--ep-charcoal);
+}
+
+.main {
+  background-color: var(--ep-canvas);
+}
+
+/* Charcoal sidebar (dark navigation, yellow active item). */
+.navbar {
+  --ep-focus: var(--ep-yellow);
+  background-color: var(--ep-charcoal);
+  border-inline-end: 0;
+  color: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Phones: the logo heads the navigation drawer (the header brand cell is hidden). */
+.navBrand {
+  padding: 16px 20px 4px;
+}
+
+.navLogo {
+  width: 100%;
+  max-width: 200px;
+}
+
+.nav {
+  flex: 1;
+  padding: 12px;
+}
+
+.link {
+  border-radius: var(--mantine-radius-md);
+  margin-bottom: 4px;
+  min-height: 44px;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+
+  @mixin hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+
+  &[data-active] {
+    background-color: var(--ep-yellow);
+    color: var(--ep-charcoal);
+    font-weight: 700;
+
+    @mixin hover {
+      background-color: var(--mantine-color-brand-7);
+      color: var(--ep-charcoal);
+    }
+  }
+}
+
+.linkLabel {
+  font-size: var(--mantine-font-size-sm);
+}
+
+.soon {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: none;
+  font-weight: 500;
+}
+
+.link[data-active] .soon {
+  border-color: rgba(35, 31, 32, 0.4);
+  color: var(--ep-charcoal);
+}
+
+.footer {
+  padding: 12px 20px 16px;
+  color: rgba(255, 255, 255, 0.45);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.userButton {
+  border-radius: var(--mantine-radius-xl);
+  padding-block: 4px;
+  padding-inline: 4px 8px;
+
+  @mixin hover {
+    background-color: var(--ep-muted);
+  }
+}
+
+.userText {
+  max-width: 180px;
+}

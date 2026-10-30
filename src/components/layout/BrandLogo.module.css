@@ -1,0 +1,9 @@
+/*
+ * The official PNG (880×226) has a 1 px white line along its right and bottom edges. The file is not edited;
+ * that edge is clipped when displayed (physical right/bottom: images are not mirrored in RTL).
+ */
+.logo {
+  display: block;
+  height: auto;
+  clip-path: inset(0 0.6% 2% 0);
+}

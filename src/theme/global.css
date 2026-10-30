@@ -1,0 +1,27 @@
+/* Global rules that complement the Mantine theme (src/theme/theme.ts). */
+
+body {
+  background-color: var(--ep-canvas);
+}
+
+/* Visible keyboard focus: charcoal on light surfaces (yellow on yellow would be invisible). */
+:root {
+  --ep-focus: var(--ep-charcoal);
+}
+
+.mantine-focus-auto:focus-visible,
+.mantine-focus-always:focus {
+  outline: 2px solid var(--ep-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

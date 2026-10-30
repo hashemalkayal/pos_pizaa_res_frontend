@@ -1,0 +1,97 @@
+{
+  "app": {
+    "name": "Engineers Pizza",
+    "product": "Point of Sale"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "pos": "POS",
+    "orders": "Orders",
+    "customers": "Customers",
+    "menu": "Menu",
+    "reports": "Reports",
+    "finance": "Finance",
+    "soon": "Soon"
+  },
+  "shell": {
+    "toggleNavigation": "Toggle navigation",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as",
+    "accountMenu": "Account menu",
+    "language": "Language",
+    "mockMode": "Mock data",
+    "mockModeHint": "Development mode: every response comes from local mocks, not from the restaurant's server."
+  },
+  "roles": {
+    "ADMIN": "Admin",
+    "CASHER": "Cashier",
+    "unknown": "Staff"
+  },
+  "language": {
+    "en": "English",
+    "ar": "العربية",
+    "enShort": "EN",
+    "arShort": "عربي"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Use your staff account to open the POS.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "errors": {
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Enter a valid email address.",
+      "passwordRequired": "Password is required.",
+      "invalidCredentials": "Invalid email or password.",
+      "tooManyAttempts_one": "Too many failed sign-in attempts. Try again in {{count}} minute.",
+      "tooManyAttempts_other": "Too many failed sign-in attempts. Try again in {{count}} minutes.",
+      "unexpectedResponse": "The server returned an unexpected sign-in response. Please contact an administrator."
+    },
+    "session": {
+      "expired": "Your session has expired. Please sign in again.",
+      "invalid": "Your session is no longer valid. Please sign in again.",
+      "userNotFound": "This account is no longer available. Please contact an administrator.",
+      "signedOut": "You have been signed out."
+    }
+  },
+  "errors": {
+    "network": "Cannot reach the server. Check the connection and try again.",
+    "timeout": "The server took too long to respond. Please try again.",
+    "server": "The server could not complete the request. Please try again.",
+    "forbidden": "You don't have permission to do this.",
+    "notFound": "This item no longer exists.",
+    "conflict": "This record was changed elsewhere. Refresh and try again.",
+    "validation": "Please check the highlighted fields.",
+    "rateLimited": "Too many requests. Please wait a moment and try again.",
+    "legacyRetired": "This feature was retired with the POS V2 switch-over. Reload the POS.",
+    "unknown": "Something went wrong. Please try again.",
+    "cutoverPending": {
+      "title": "POS V2 is not active yet",
+      "description": "The server is still running the previous POS. This screen becomes available after the approved switch-over."
+    },
+    "title": "Something went wrong",
+    "retry": "Try again",
+    "reference": "Reference: {{id}}"
+  },
+  "planned": {
+    "title": "{{section}} is being rebuilt",
+    "description": "This section is part of the POS V2 rebuild and arrives in phase {{phase}}. The current POS keeps serving it until the switch-over.",
+    "badge": "Phase {{phase}}"
+  },
+  "adminOnly": {
+    "title": "Not available for your role",
+    "description": "This section is shown to administrators only."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The address you opened does not exist.",
+    "back": "Go to POS"
+  },
+  "common": {
+    "loading": "Loading…"
+  },
+  "currency": {
+    "jod": "JOD"
+  }
+}
