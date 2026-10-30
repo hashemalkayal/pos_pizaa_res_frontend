@@ -1,11 +1,13 @@
-import { useId, useMemo, useState } from "react";
-import { Button, Checkbox, Group, Modal, Radio, Stack, Tabs, Text, Textarea } from "@mantine/core";
+import { useId, useMemo, useRef, useState } from "react";
+import { ActionIcon, Badge, Button, Checkbox, Divider, Group, Modal, Radio, Skeleton, Stack, Tabs, Text, Textarea } from "@mantine/core";
+import { IconNote, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CatalogProduct, CatalogVariant } from "@/api/v2/catalog";
 import { CurrencyText } from "@/components/money/CurrencyText";
-import { fromFils } from "@/lib/money";
-import { MAX_COMMENT_LENGTH, type LineConfig } from "../model/cart";
-import { defaultVariant, doughTabs, labelWithoutDough, linePreviewFils, selectedAddOns, sellableVariants, variantForDough } from "../model/catalogView";
+import { cartReducer, MAX_COMMENT_LENGTH, newLineKey, normalizeConfig, quoteLineFor, type CartLine, type LineConfig } from "../model/cart";
+import { defaultVariant, doughTabs, labelWithoutDough, selectedAddOns, sellableVariants, variantForDough } from "../model/catalogView";
+import { lineInputs } from "../model/orderDraft";
+import { usePosQuote } from "../hooks/queries";
 import { useLocalized } from "../hooks/useLocalized";
 import { QuantityStepper } from "./QuantityStepper";
 import classes from "../Pos.module.css";
@@ -18,7 +20,7 @@ export interface ProductEditorTarget {
 
 interface VariantCardsProps {
   variants: CatalogVariant[];
-  value: number;
+  value: number | null;
   onChange: (variantId: number) => void;
   label: string;
   labelOf: (variant: CatalogVariant) => string;
@@ -26,7 +28,7 @@ interface VariantCardsProps {
 }
 
 const VariantCards = ({ variants, value, onChange, label, labelOf, compact = false }: VariantCardsProps) => (
-  <Radio.Group value={String(value)} onChange={(next) => onChange(Number(next))} label={label} labelProps={{ mb: 6, fw: 700 }}>
+  <Radio.Group value={value === null ? null : String(value)} onChange={(next) => onChange(Number(next))} label={label} labelProps={{ mb: 6, fw: 700 }}>
     <div className={compact ? `${classes.optionGrid} ${classes.sizeGrid}` : classes.optionGrid}>
       {variants.map((variant) => (
         <Radio.Card key={variant.id} value={String(variant.id)} className={classes.choiceCard} radius="md">
@@ -45,38 +47,156 @@ const VariantCards = ({ variants, value, onChange, label, labelOf, compact = fal
   </Radio.Group>
 );
 
+interface StagedRowProps {
+  line: CartLine;
+  product: CatalogProduct;
+  /** Backend line total; null while it is not known for this exact configuration. */
+  lineTotal: string | null;
+  stale: boolean;
+  onEdit: (key: string) => void;
+  onRemove: (key: string) => void;
+  onQuantity: (key: string, quantity: number) => void;
+}
+
+/** One configuration waiting in the dialog: dough and size, add-ons, note, quantity and backend price. */
+const StagedRow = ({ line, product, lineTotal, stale, onEdit, onRemove, onQuantity }: StagedRowProps) => {
+  const { t } = useTranslation();
+  const { name, pick } = useLocalized();
+  const variant = product.variants.find((candidate) => candidate.id === line.variantId);
+  const label = (variant && pick(variant.labelEn, variant.labelAr)) || name(product);
+  const addOns = selectedAddOns(product, line.addOnIds);
+  return (
+    <li className={classes.stagedRow}>
+      <div className={classes.stagedInfo}>
+        <div className={classes.lineName}>{label}</div>
+        {addOns.length || line.comment ? (
+          <div className={classes.stagedMeta}>
+            {addOns.map((addOn) => `+ ${name(addOn)}`).join(" · ")}
+            {line.comment ? (
+              <span className={classes.stagedNote} title={line.comment}>
+                <IconNote size={13} aria-hidden /> {t("pos.product.note", { note: line.comment })}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <div className={classes.stagedControls}>
+        <QuantityStepper
+          value={line.quantity}
+          onChange={(quantity) => onQuantity(line.key, quantity)}
+          decreaseLabel={t("pos.cart.decrease", { name: label })}
+          increaseLabel={t("pos.cart.increase", { name: label })}
+          valueLabel={t("pos.cart.quantityOf", { quantity: line.quantity, name: label })}
+        />
+        {lineTotal ? (
+          <CurrencyText value={lineTotal} size="sm" fw={700} className={`${classes.money} ${stale ? classes.summaryStale : ""}`} />
+        ) : (
+          <Skeleton height={14} width={64} radius="sm" />
+        )}
+        <ActionIcon size="action" variant="subtle" color="charcoal" onClick={() => onEdit(line.key)} aria-label={t("pos.cart.edit", { name: label })}>
+          <IconPencil size={17} />
+        </ActionIcon>
+        <ActionIcon size="action" variant="subtle" color="red" onClick={() => onRemove(line.key)} aria-label={t("pos.cart.remove", { name: label })}>
+          <IconTrash size={17} />
+        </ActionIcon>
+      </div>
+    </li>
+  );
+};
+
+const configOf = ({ productId, variantId, addOnIds, quantity, comment }: CartLine): LineConfig => ({ productId, variantId, addOnIds, quantity, comment });
+
+/** The configuration being chosen. `pristine`: reset after "Add another configuration" and not chosen yet. */
+interface FormState {
+  variantId: number | null;
+  addOnIds: number[];
+  quantity: number;
+  comment: string;
+  pristine: boolean;
+}
+
 interface ProductEditorProps {
   target: ProductEditorTarget;
-  onSubmit: (config: LineConfig) => void;
+  /** Returns false when the configurations were not accepted (the dialog stays open). */
+  onSubmit: (configs: LineConfig[]) => boolean;
   onCancel: () => void;
 }
 
 /**
  * Variant, add-ons, quantity and note for one product. Only what the catalog offers for this product is shown.
  * Pizzas sold in sizes with several doughs get one tab per dough, each listing the sizes that exist for it.
+ *
+ * Several configurations can be added in one go: "Add another configuration" keeps the current one in the dialog
+ * (identical ones merge) and resets the form with nothing selected, so only what is chosen is ever added. "Add all
+ * to order" adds the kept configurations plus the current one, if chosen, to the cart in one update. Totals come
+ * from the backend quote of exactly those configurations. When editing a cart line, only that line is changed.
  */
 const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
   const { t } = useTranslation();
   const { name, pick } = useLocalized();
   const doughLabelId = useId();
+  const stagedLabelId = useId();
   const { product, line } = target;
+  const editing = Boolean(line);
   const variants = sellableVariants(product);
   const tabs = useMemo(() => doughTabs(product), [product]);
-  const [variantId, setVariantId] = useState(() => line?.variantId ?? defaultVariant(product)?.id ?? 0);
-  const [addOnIds, setAddOnIds] = useState<number[]>(() => line?.addOnIds ?? []);
-  const [quantity, setQuantity] = useState(() => line?.quantity ?? 1);
-  const [comment, setComment] = useState(() => line?.comment ?? "");
-
-  const variant = variants.find((candidate) => candidate.id === variantId);
-  const addOns = selectedAddOns(product, addOnIds);
   const showVariants = variants.length > 1 || Boolean(variants[0]?.labelEn);
-  // The tab follows the selected variant, so the selection is always one of the shown sizes.
-  const activeTab = tabs ? (tabs.find((tab) => tab.variants.some((candidate) => candidate.id === variantId)) ?? tabs[0]) : null;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const submitted = useRef(false);
 
-  const submit = () => {
-    if (!variant) return;
-    onSubmit({ productId: product.id, variantId: variant.id, addOnIds, quantity, comment: comment.trim() || null });
+  const [form, setForm] = useState<FormState>(() => ({
+    variantId: line?.variantId ?? defaultVariant(product)?.id ?? null,
+    addOnIds: line?.addOnIds ?? [],
+    quantity: line?.quantity ?? 1,
+    comment: line?.comment ?? "",
+    pristine: false,
+  }));
+  const [staged, setStaged] = useState<CartLine[]>([]);
+  const change = (patch: Partial<Omit<FormState, "pristine">>) => setForm((current) => ({ ...current, ...patch, pristine: false }));
+
+  const variant = variants.find((candidate) => candidate.id === form.variantId);
+  const active: LineConfig | null =
+    variant && !form.pristine ? normalizeConfig({ productId: product.id, variantId: variant.id, addOnIds: form.addOnIds, quantity: form.quantity, comment: form.comment }) : null;
+  const configs: LineConfig[] = [...staged.map(configOf), ...(active ? [active] : [])];
+
+  const quote = usePosQuote(configs.length ? { items: lineInputs(configs) } : null);
+  const shownQuote = quote.status === "current" || quote.status === "updating" ? quote.quote : null;
+
+  // The tab follows the selected variant, so the selection is always one of the shown sizes.
+  const fallbackVariantId = defaultVariant(product)?.id;
+  const activeTab = tabs
+    ? (tabs.find((tab) => tab.variants.some((candidate) => candidate.id === (form.variantId ?? fallbackVariantId))) ?? tabs[0])
+    : null;
+
+  const stage = () => {
+    if (!active) return;
+    setStaged((current) => cartReducer(current, { type: "add", key: newLineKey(), line: active }));
+    setForm({ variantId: showVariants ? null : (fallbackVariantId ?? null), addOnIds: [], quantity: 1, comment: "", pristine: true });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+      scrollRef.current.focus();
+    }
   };
+
+  const editStaged = (key: string) => {
+    // A configuration being chosen is kept (staged), never overwritten.
+    const kept = active ? cartReducer(staged, { type: "add", key: newLineKey(), line: active }) : staged;
+    const row = kept.find((candidate) => candidate.key === key);
+    if (!row) return;
+    setStaged(kept.filter((candidate) => candidate.key !== key));
+    setForm({ variantId: row.variantId, addOnIds: row.addOnIds, quantity: row.quantity, comment: row.comment ?? "", pristine: false });
+  };
+
+  const toSubmit = editing ? (active ? [active] : []) : configs;
+  const submit = () => {
+    if (submitted.current || !toSubmit.length) return;
+    submitted.current = true;
+    if (!onSubmit(toSubmit)) submitted.current = false;
+  };
+
+  const totalLabel = staged.length
+    ? `${t("pos.product.total")} · ${t("pos.product.configurations", { count: configs.length })}`
+    : `${t("pos.product.total")}${form.quantity > 1 && active ? ` (× ${form.quantity})` : ""}`;
 
   return (
     <form
@@ -86,8 +206,36 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
         submit();
       }}
     >
-      <div className={classes.dialogScroll}>
+      <div className={classes.dialogScroll} ref={scrollRef} tabIndex={-1}>
         <Stack gap="md">
+          {staged.length ? (
+            <section aria-labelledby={stagedLabelId}>
+              <Group gap="xs" mb={6}>
+                <Text id={stagedLabelId} fw={700} size="sm">
+                  {t("pos.product.staged")}
+                </Text>
+                <Badge size="sm" variant="light" color="charcoal" radius="xl" aria-hidden>
+                  {staged.length}
+                </Badge>
+              </Group>
+              <ul className={classes.stagedList}>
+                {staged.map((stagedLine, position) => (
+                  <StagedRow
+                    key={stagedLine.key}
+                    line={stagedLine}
+                    product={product}
+                    lineTotal={quoteLineFor(stagedLine, shownQuote?.items[position])?.lineTotal ?? null}
+                    stale={quote.status !== "current"}
+                    onEdit={editStaged}
+                    onRemove={(key) => setStaged((current) => cartReducer(current, { type: "remove", key }))}
+                    onQuantity={(key, quantity) => setStaged((current) => cartReducer(current, { type: "setQuantity", key, quantity }))}
+                  />
+                ))}
+              </ul>
+              <Divider mt="md" label={t("pos.product.next")} labelPosition="left" />
+            </section>
+          ) : null}
+
           {tabs && activeTab ? (
             <div>
               <Text id={doughLabelId} fw={700} size="sm" mb={6}>
@@ -97,7 +245,7 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
                 value={String(activeTab.valueId)}
                 onChange={(value) => {
                   const tab = tabs.find((candidate) => String(candidate.valueId) === value);
-                  if (tab) setVariantId(variantForDough(tab, variant).id);
+                  if (tab) change({ variantId: variantForDough(tab, variant).id });
                 }}
                 variant="pills"
                 radius="xl"
@@ -115,8 +263,8 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
                   <Tabs.Panel key={tab.valueId} value={String(tab.valueId)} pt="sm">
                     <VariantCards
                       variants={tab.variants}
-                      value={variantId}
-                      onChange={setVariantId}
+                      value={form.variantId}
+                      onChange={(variantId) => change({ variantId })}
                       label={t("pos.product.size")}
                       labelOf={(candidate) => {
                         const label = labelWithoutDough(candidate);
@@ -131,15 +279,15 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
           ) : showVariants ? (
             <VariantCards
               variants={variants}
-              value={variantId}
-              onChange={setVariantId}
+              value={form.variantId}
+              onChange={(variantId) => change({ variantId })}
               label={t("pos.product.chooseOption")}
               labelOf={(candidate) => pick(candidate.labelEn, candidate.labelAr) || name(product)}
             />
           ) : null}
 
           {product.addOns.length ? (
-            <Checkbox.Group value={addOnIds.map(String)} onChange={(values) => setAddOnIds(values.map(Number))} label={t("pos.product.addOns")} labelProps={{ mb: 6, fw: 700 }}>
+            <Checkbox.Group value={form.addOnIds.map(String)} onChange={(values) => change({ addOnIds: values.map(Number) })} label={t("pos.product.addOns")} labelProps={{ mb: 6, fw: 700 }}>
               <div className={classes.optionGrid}>
                 {product.addOns.map((addOn) => (
                   <Checkbox.Card key={addOn.addOnId} value={String(addOn.addOnId)} className={classes.choiceCard} radius="md">
@@ -164,15 +312,15 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
             <Text fw={700} size="sm">
               {t("pos.product.quantity")}
             </Text>
-            <QuantityStepper value={quantity} onChange={setQuantity} decreaseLabel={t("pos.product.decrease")} increaseLabel={t("pos.product.increase")} size="md" />
+            <QuantityStepper value={form.quantity} onChange={(quantity) => change({ quantity })} decreaseLabel={t("pos.product.decrease")} increaseLabel={t("pos.product.increase")} size="md" />
           </Group>
 
           <Textarea
             label={t("pos.product.notes")}
             labelProps={{ fw: 700 }}
             placeholder={t("pos.product.notesPlaceholder")}
-            value={comment}
-            onChange={(event) => setComment(event.currentTarget.value)}
+            value={form.comment}
+            onChange={(event) => change({ comment: event.currentTarget.value })}
             maxLength={MAX_COMMENT_LENGTH}
             autosize
             minRows={2}
@@ -182,19 +330,36 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
       </div>
 
       <div className={classes.dialogFooter}>
+        {!editing ? (
+          <Button size="action-compact" variant="light" color="charcoal" fullWidth leftSection={<IconPlus size={16} />} disabled={!active} onClick={stage} mb="sm">
+            {t("pos.product.addAnother")}
+          </Button>
+        ) : null}
         <Group justify="space-between" gap="sm">
-          <div>
+          <div aria-live="polite">
             <Text size="xs" c="dimmed" fw={600}>
-              {t("pos.product.total")} {quantity > 1 ? `(× ${quantity})` : null}
+              {totalLabel}
             </Text>
-            {variant ? <CurrencyText value={fromFils(linePreviewFils(variant, addOns, quantity))} fw={800} size="xl" className={classes.money} /> : null}
+            {shownQuote ? (
+              <CurrencyText value={shownQuote.totalAmount} fw={800} size="xl" className={`${classes.money} ${quote.status === "updating" ? classes.summaryStale : ""}`} />
+            ) : quote.status === "error" ? (
+              <Text size="sm" fw={600} c="red.7">
+                {t("pos.summary.error")}
+              </Text>
+            ) : quote.status === "loading" ? (
+              <Skeleton height={24} width={110} radius="sm" mt={4} />
+            ) : (
+              <Text fw={800} size="xl">
+                —
+              </Text>
+            )}
           </div>
           <Group gap="sm" wrap="nowrap" ms="auto">
-            <Button variant="default" onClick={onCancel}>
+            <Button size="action" variant="default" onClick={onCancel}>
               {t("pos.product.cancel")}
             </Button>
-            <Button type="submit" size="md" disabled={!variant} data-autofocus>
-              {line ? t("pos.product.update") : t("pos.product.add")}
+            <Button size="action" type="submit" disabled={!toSubmit.length} data-autofocus>
+              {editing ? t("pos.product.update") : staged.length ? t("pos.product.addAll") : t("pos.product.add")}
             </Button>
           </Group>
         </Group>
@@ -205,7 +370,7 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
 
 interface ProductModalProps {
   target: ProductEditorTarget | null;
-  onSubmit: (config: LineConfig) => void;
+  onSubmit: (configs: LineConfig[]) => boolean;
   onClose: () => void;
 }
 

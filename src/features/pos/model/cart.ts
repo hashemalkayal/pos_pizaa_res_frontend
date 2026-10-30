@@ -1,3 +1,5 @@
+import type { OrderLine } from "@/api/v2/orders";
+
 /**
  * The in-progress cart (client state). Prices are never stored here: every total shown to the cashier comes
  * from the backend quote (POST /api/orders/quote). Limits follow the backend's order schema.
@@ -44,6 +46,8 @@ export const sameConfiguration = (a: Omit<LineConfig, "quantity">, b: Omit<LineC
 
 export type CartAction =
   | { type: "add"; key: string; line: LineConfig }
+  /** Several lines in one state update (the product dialog's "Add all to order"), each merged like "add". */
+  | { type: "addMany"; lines: { key: string; line: LineConfig }[] }
   | { type: "update"; key: string; line: LineConfig }
   | { type: "setQuantity"; key: string; quantity: number }
   | { type: "remove"; key: string }
@@ -58,6 +62,8 @@ export const cartReducer = (lines: CartLine[], action: CartAction): CartLine[] =
       if (lines.length >= MAX_LINES) return lines;
       return [...lines, { ...line, key: action.key }];
     }
+    case "addMany":
+      return action.lines.reduce((current, { key, line }) => cartReducer(current, { type: "add", key, line }), lines);
     case "update": {
       const edited = lines.find((existing) => existing.key === action.key);
       if (!edited) return lines;
@@ -83,5 +89,23 @@ export const cartReducer = (lines: CartLine[], action: CartAction): CartLine[] =
 /** True when one more distinct line can be added (the backend accepts at most 50 lines). */
 export const canAddLine = (lines: CartLine[], line: LineConfig) =>
   lines.length < MAX_LINES || lines.some((existing) => sameConfiguration(existing, normalizeConfig(line)));
+
+/** True when all these configurations fit in the cart together (identical ones merge into one line). */
+export const canAddLines = (lines: CartLine[], configs: LineConfig[]) => {
+  let current = lines;
+  for (const config of configs) {
+    if (!canAddLine(current, config)) return false;
+    current = cartReducer(current, { type: "add", key: "pending", line: config });
+  }
+  return true;
+};
+
+/** The quote line priced for this exact configuration (same position in the request), if the quote has it. */
+export const quoteLineFor = (line: LineConfig, quoteLine: OrderLine | undefined) => {
+  if (!quoteLine || quoteLine.variantId !== line.variantId || quoteLine.quantity !== line.quantity) return undefined;
+  const ids = quoteLine.addOns.map((addOn) => addOn.addOnId).sort((a, b) => a - b);
+  if (ids.length !== line.addOnIds.length || ids.some((id, index) => id !== line.addOnIds[index])) return undefined;
+  return (quoteLine.comment ?? null) === line.comment ? quoteLine : undefined;
+};
 
 export const itemCount = (lines: CartLine[]) => lines.reduce((total, line) => total + line.quantity, 0);

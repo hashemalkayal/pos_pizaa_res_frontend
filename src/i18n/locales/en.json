@@ -126,7 +126,14 @@
       "add": "Add to order",
       "update": "Update item",
       "cancel": "Cancel",
-      "maxLines": "An order can have at most 50 different lines."
+      "maxLines": "An order can have at most 50 different lines.",
+      "addAnother": "Add another configuration",
+      "addAll": "Add all to order",
+      "staged": "Ready to add",
+      "next": "Next configuration",
+      "note": "Note: {{note}}",
+      "configurations_one": "{{count}} configuration",
+      "configurations_other": "{{count}} configurations"
     },
     "cart": {
       "title": "Current order",

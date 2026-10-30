@@ -71,10 +71,10 @@ export const SuccessModal = ({ completed, onNewOrder, onViewOrder }: SuccessModa
             </Group>
           ) : null}
           <Group grow w="100%" gap="sm">
-            <Button variant="default" size="md" onClick={() => onViewOrder(order.id)}>
+            <Button variant="default" size="action" onClick={() => onViewOrder(order.id)}>
               {t("pos.success.viewOrder")}
             </Button>
-            <Button size="md" onClick={onNewOrder} data-autofocus>
+            <Button size="action" onClick={onNewOrder} data-autofocus>
               {t("pos.success.newOrder")}
             </Button>
           </Group>

@@ -23,10 +23,9 @@ import {
   IconTruckDelivery,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { OrderLine } from "@/api/v2/orders";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { itemCount, type CartLine } from "../model/cart";
+import { itemCount, quoteLineFor, type CartLine } from "../model/cart";
 import { selectedAddOns, type CatalogIndex } from "../model/catalogView";
 import {
   MAX_LOCATION_LENGTH,
@@ -42,25 +41,6 @@ import { DeliveryTimeInput } from "./DeliveryTimeInput";
 import { QuantityStepper } from "./QuantityStepper";
 import { quoteErrorKey } from "./quoteErrors";
 import classes from "../Pos.module.css";
-
-/** The quote line for this cart line, when the shown quote was made for the same configuration. */
-const quoteLineFor = (line: CartLine, quoteLine: OrderLine | undefined) => {
-  if (
-    !quoteLine ||
-    quoteLine.variantId !== line.variantId ||
-    quoteLine.quantity !== line.quantity
-  )
-    return undefined;
-  const ids = quoteLine.addOns
-    .map((addOn) => addOn.addOnId)
-    .sort((a, b) => a - b);
-  if (
-    ids.length !== line.addOnIds.length ||
-    ids.some((id, index) => id !== line.addOnIds[index])
-  )
-    return undefined;
-  return (quoteLine.comment ?? null) === line.comment ? quoteLine : undefined;
-};
 
 interface CartLineRowProps {
   line: CartLine;
@@ -132,6 +112,7 @@ const CartLineRow = memo(
           <Group gap={2}>
             <Tooltip label={t("pos.cart.edit", { name: productName })}>
               <ActionIcon
+                size="action"
                 variant="subtle"
                 color="charcoal"
                 onClick={() => onEdit(line.key)}
@@ -142,6 +123,7 @@ const CartLineRow = memo(
             </Tooltip>
             <Tooltip label={t("pos.cart.remove", { name: productName })}>
               <ActionIcon
+                size="action"
                 variant="subtle"
                 color="red"
                 onClick={() => onRemove(line.key)}
@@ -224,7 +206,7 @@ export const CartPanel = ({
             <Button
               variant="subtle"
               color="red"
-              size="compact-sm"
+              size="action-compact"
               leftSection={<IconTrash size={15} />}
               onClick={onClear}
             >
@@ -232,6 +214,7 @@ export const CartPanel = ({
             </Button>
           ) : null}
           <ActionIcon
+            size="action"
             hiddenFrom="md"
             variant="subtle"
             color="charcoal"
@@ -442,7 +425,7 @@ export const CartPanel = ({
             <Group justify="space-between" gap="xs">
               <Text size="xs">{t(quoteErrorKey(quote.error))}</Text>
               <Button
-                size="compact-xs"
+                size="action-compact"
                 variant="white"
                 color="red"
                 onClick={quote.retry}
@@ -462,9 +445,7 @@ export const CartPanel = ({
           </Stack>
         ) : null}
         <Button
-          className={classes.checkout}
-          size="lg"
-          radius="md"
+          size="action"
           fullWidth
           disabled={!canCheckout}
           onClick={onCheckout}

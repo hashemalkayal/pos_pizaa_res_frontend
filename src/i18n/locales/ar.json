@@ -134,7 +134,18 @@
       "add": "إضافة إلى الطلب",
       "update": "تحديث الصنف",
       "cancel": "إلغاء",
-      "maxLines": "يمكن أن يحتوي الطلب على 50 سطرًا مختلفًا كحد أقصى."
+      "maxLines": "يمكن أن يحتوي الطلب على 50 سطرًا مختلفًا كحد أقصى.",
+      "addAnother": "إضافة خيار آخر",
+      "addAll": "إضافة الكل للطلب",
+      "staged": "جاهزة للإضافة",
+      "next": "الخيار التالي",
+      "note": "ملاحظة: {{note}}",
+      "configurations_zero": "لا خيارات",
+      "configurations_one": "خيار واحد",
+      "configurations_two": "خياران",
+      "configurations_few": "{{count}} خيارات",
+      "configurations_many": "{{count}} خيارًا",
+      "configurations_other": "{{count}} خيار"
     },
     "cart": {
       "title": "الطلب الحالي",

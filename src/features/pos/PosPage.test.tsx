@@ -1,12 +1,14 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
+import { rem } from "@mantine/core";
 import { describe, expect, it } from "vitest";
 import type { CreateOrderRequest, QuoteRequest } from "@/api/v2/orders";
 import { appError } from "@/mocks/handlers";
 import * as store from "@/mocks/orderStore";
 import { currentPathname, renderApp, signInAs } from "@/test/renderApp";
 import { server } from "@/test/server";
+import { ACTION_SIZES } from "@/theme/theme";
 
 /*
  * The cashier screen against the MSW backend (src/mocks: the V2 contract, priced like the backend).
@@ -25,8 +27,9 @@ const cart = () => screen.getByRole("complementary", { name: "Current order" });
 const cartLines = () => within(cart()).queryAllByRole("listitem");
 const checkout = () => within(cart()).getByRole("button", { name: /^Checkout/ });
 const search = () => screen.getByRole("textbox", { name: "Search the menu" });
-/** The product dialog's single total (footer). */
-const dialogTotal = (dialog: HTMLElement) => within(dialog).getByText(/^Total/).nextSibling;
+/** Waits for the product dialog's single total (footer), priced by the backend quote. */
+const expectDialogTotal = (dialog: HTMLElement, amount: string) =>
+  waitFor(() => expect(within(dialog).getByText(/^Total/).nextSibling).toHaveTextContent(`${amount} JOD`));
 /** The amount next to a summary label (the summary is the last occurrence of the label in the cart). */
 const summaryValue = (label: string) => within(cart()).getAllByText(label).at(-1)?.nextSibling;
 
@@ -119,7 +122,7 @@ describe("POS — product dialog and cart", () => {
     await user.click(within(dialog).getByRole("button", { name: "Increase quantity" }));
     await user.type(within(dialog).getByRole("textbox", { name: "Item notes" }), "  cut in 8  ");
     // One total, no separate price breakdown.
-    expect(within(dialog).getByText("12.000")).toBeInTheDocument(); // (5.000 + 1.000) × 2
+    await expectDialogTotal(dialog, "12.000"); // (5.000 + 1.000) × 2, from the backend quote
     expect(within(dialog).getByText("Total (× 2)")).toBeInTheDocument();
     expect(within(dialog).queryByText("Price")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Add to order" }));
@@ -148,12 +151,12 @@ describe("POS — product dialog and cart", () => {
     expect(within(dialog).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["Medium5.000 JOD"]);
     expect(within(dialog).getByRole("radio", { name: /Medium/ })).toBeChecked();
     expect(within(dialog).getByRole("checkbox", { name: /Extra Basil/ })).toBeChecked();
-    expect(dialogTotal(dialog)).toHaveTextContent("6.000 JOD");
+    await expectDialogTotal(dialog, "6.000");
 
     // Back to regular: the same size (Medium) in that dough.
     await user.click(within(dialog).getByRole("tab", { name: "Regular" }));
     expect(within(dialog).getByRole("radio", { name: /Medium/ })).toBeChecked();
-    expect(dialogTotal(dialog)).toHaveTextContent("5.000 JOD");
+    await expectDialogTotal(dialog, "5.000");
 
     await user.click(within(dialog).getByRole("tab", { name: "Whole Wheat" }));
     await user.click(within(dialog).getByRole("button", { name: "Add to order" }));
@@ -167,6 +170,8 @@ describe("POS — product dialog and cart", () => {
     expect(within(editor).getByRole("radio", { name: /Medium/ })).toBeChecked();
     expect(within(editor).getByRole("checkbox", { name: /Extra Basil/ })).toBeChecked();
     expect(within(editor).getByRole("button", { name: "Update item" })).toBeInTheDocument();
+    // Editing changes this line only: no staging of other configurations.
+    expect(within(editor).queryByRole("button", { name: "Add another configuration" })).not.toBeInTheDocument();
   });
 
   it("dough tabs only for products sold in sizes: manakish and pasta keep plain option cards", async () => {
@@ -242,6 +247,168 @@ describe("POS — product dialog and cart", () => {
     await waitFor(() => expect(cartLines()).toHaveLength(0));
     expect(within(cart()).getByText("No items yet")).toBeInTheDocument();
     expect(checkout()).toBeDisabled();
+  });
+});
+
+describe("POS — several configurations in one product dialog", () => {
+  const staged = (dialog: HTMLElement) => within(within(dialog).getByRole("region", { name: "Ready to add" })).getAllByRole("listitem");
+  const addAnother = (dialog: HTMLElement) => within(dialog).getByRole("button", { name: "Add another configuration" });
+  const lineMeta = (line: HTMLElement) => line.querySelector("[class*=lineMeta]")?.textContent ?? "";
+
+  it("adds three configurations (doughs, sizes, add-ons, notes, quantities) in one session, priced together by the backend", async () => {
+    const user = await openPos();
+    const quotes = recordBodies<QuoteRequest>("*/api/orders/quote");
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Margherita" });
+
+    // 1 — Medium regular, Extra Basil, × 2, with a note
+    await user.click(within(dialog).getByRole("checkbox", { name: /Extra Basil/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Increase quantity" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "Item notes" }), "well done");
+    await user.click(addAnother(dialog));
+    expect(staged(dialog)).toHaveLength(1);
+    expect(staged(dialog)[0]).toHaveTextContent("Medium · Regular");
+    expect(staged(dialog)[0]).toHaveTextContent("+ Extra Basil");
+    expect(staged(dialog)[0]).toHaveTextContent("Note: well done");
+    expect(within(staged(dialog)[0]).getByText("2 × Medium · Regular")).toBeInTheDocument();
+    // The form starts again with nothing chosen, so nothing is added by accident.
+    expect(within(dialog).queryAllByRole("radio", { checked: true })).toHaveLength(0);
+    expect(within(dialog).queryAllByRole("checkbox", { checked: true })).toHaveLength(0);
+    expect(within(dialog).getByRole("textbox", { name: "Item notes" })).toHaveValue("");
+    expect(addAnother(dialog)).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Add all to order" })).toBeEnabled();
+
+    // 2 — Large regular
+    await user.click(within(dialog).getByRole("radio", { name: /Large/ }));
+    await user.click(addAnother(dialog));
+    expect(staged(dialog)).toHaveLength(2);
+
+    // 3 — Whole wheat (Medium only) with Extra Mozzarella: the current form, added by "Add all"
+    await user.click(within(dialog).getByRole("tab", { name: "Whole Wheat" }));
+    expect(within(dialog).getByRole("radio", { name: /Medium/ })).toBeChecked();
+    await user.click(within(dialog).getByRole("checkbox", { name: /Extra Mozzarella/ }));
+
+    // One total for everything, from one quote of the three configurations: 2 × 5.000 + 5.000 + 6.000
+    await expectDialogTotal(dialog, "21.000");
+    expect(within(dialog).getByText("Total · 3 configurations")).toBeInTheDocument();
+    expect(quotes.at(-1)).toEqual({
+      items: [
+        { variantId: 101, quantity: 2, addOnIds: [3], comment: "well done" },
+        { variantId: 102, quantity: 1 },
+        { variantId: 103, quantity: 1, addOnIds: [2] },
+      ],
+    });
+    await waitFor(() => expect(staged(dialog)[0]).toHaveTextContent("10.000 JOD"));
+    expect(staged(dialog)[1]).toHaveTextContent("5.000 JOD");
+
+    await user.click(within(dialog).getByRole("button", { name: "Add all to order" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Margherita" })).not.toBeInTheDocument());
+    await expectTotal("21.000");
+    expect(cartLines().map(lineMeta)).toEqual(["Medium · Regular · + Extra Basil", "Large · Regular", "Medium · Whole Wheat · + Extra Mozzarella"]);
+    expect(cartLines()[0]).toHaveTextContent("“well done”");
+    expect(within(cart()).getByText("2 × Margherita")).toBeInTheDocument();
+    expect(within(cart()).getByText("4 items")).toBeInTheDocument();
+  });
+
+  it("staged configurations can be re-counted, removed and edited; identical ones merge; the current form is never lost", async () => {
+    const user = await openPos();
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Margherita" });
+
+    await user.click(addAnother(dialog)); // Medium regular
+    await user.click(within(dialog).getByRole("radio", { name: /Medium/ }));
+    await user.click(addAnother(dialog)); // the same again: merged
+    expect(staged(dialog)).toHaveLength(1);
+    expect(within(staged(dialog)[0]).getByText("2 × Medium · Regular")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("radio", { name: /Large/ }));
+    await user.click(addAnother(dialog));
+    await user.click(within(dialog).getByRole("button", { name: "One more Large · Regular" }));
+    expect(within(staged(dialog)[1]).getByText("2 × Large · Regular")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Remove Medium · Regular" }));
+    expect(staged(dialog)).toHaveLength(1);
+
+    // Editing a staged row while another configuration is being chosen keeps that one (staged), then loads the row.
+    await user.click(within(dialog).getByRole("tab", { name: "Whole Wheat" }));
+    await user.click(within(dialog).getByRole("button", { name: "Edit Large · Regular" }));
+    expect(staged(dialog)).toHaveLength(1);
+    expect(staged(dialog)[0]).toHaveTextContent("Medium · Whole Wheat");
+    expect(within(dialog).getByRole("tab", { name: "Regular" })).toHaveAttribute("aria-selected", "true");
+    expect(within(dialog).getByRole("radio", { name: /Large/ })).toBeChecked();
+
+    await user.click(within(dialog).getByRole("checkbox", { name: /Extra Basil/ }));
+    await expectDialogTotal(dialog, "17.000"); // 5.000 + 2 × (5.000 + 1.000)
+    await user.click(within(dialog).getByRole("button", { name: "Add all to order" }));
+    await expectTotal("17.000");
+    expect(cartLines().map(lineMeta)).toEqual(["Medium · Whole Wheat", "Large · Regular · + Extra Basil"]);
+    expect(within(cart()).getByText("2 × Margherita")).toBeInTheDocument();
+  });
+
+  it("no duplicates: the reset form is not added, a double click adds once, and identical lines merge in the cart", async () => {
+    const user = await openPos();
+    await addProduct(user, "Margherita"); // Medium regular already in the cart
+    await expectTotal("4.000");
+
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Margherita" });
+    await user.click(addAnother(dialog));
+    await user.dblClick(within(dialog).getByRole("button", { name: "Add all to order" }));
+    await expectTotal("8.000");
+    expect(cartLines()).toHaveLength(1);
+    expect(within(cart()).getByText("2 × Margherita")).toBeInTheDocument();
+  });
+
+  it("cancelling discards the staged configurations and leaves the cart as it was", async () => {
+    const user = await openPos();
+    await addProduct(user, "Water");
+    await expectTotal("0.500");
+
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    let dialog = await screen.findByRole("dialog", { name: "Margherita" });
+    await user.click(addAnother(dialog));
+    await user.click(within(dialog).getByRole("radio", { name: /Large/ }));
+    await user.click(addAnother(dialog));
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Margherita" })).not.toBeInTheDocument());
+    expect(cartLines()).toHaveLength(1);
+    await expectTotal("0.500");
+
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    dialog = await screen.findByRole("dialog", { name: "Margherita" });
+    expect(within(dialog).queryByRole("region", { name: "Ready to add" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Add to order" })).toBeInTheDocument();
+  });
+});
+
+describe("POS — action button sizes", () => {
+  const height = (button: HTMLElement) => button.style.getPropertyValue("--button-height");
+  const standard = rem(ACTION_SIZES.button);
+  const compact = rem(ACTION_SIZES.compactButton);
+
+  it("action buttons share one standard (40px), inline actions the compact one (34px), icons 36px", async () => {
+    const user = await openPos();
+    await user.click(screen.getByRole("button", { name: /^Margherita/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Margherita" });
+    expect(height(within(dialog).getByRole("button", { name: "Cancel" }))).toBe(standard);
+    expect(height(within(dialog).getByRole("button", { name: "Add to order" }))).toBe(standard);
+    expect(height(within(dialog).getByRole("button", { name: "Add another configuration" }))).toBe(compact);
+    await user.click(within(dialog).getByRole("button", { name: "Add to order" }));
+    await expectTotal("4.000");
+
+    expect(height(checkout())).toBe(standard); // no longer oversized
+    expect(height(within(cart()).getByRole("button", { name: "Clear" }))).toBe(compact);
+    expect(within(cart()).getByRole("button", { name: "Edit Margherita" }).style.getPropertyValue("--ai-size")).toBe(rem(ACTION_SIZES.icon));
+
+    const payment = await payWith(user, "Cash");
+    expect(height(within(payment).getByRole("button", { name: /^Confirm payment/ }))).toBe(standard);
+    expect(height(within(payment).getByRole("button", { name: "Back" }))).toBe(standard);
+    expect(height(within(payment).getByRole("button", { name: "Exact" }))).toBe(compact);
+    await user.click(within(payment).getByRole("button", { name: "Exact" }));
+    await user.click(within(payment).getByRole("button", { name: /^Confirm payment/ }));
+
+    await screen.findByRole("heading", { name: "Order created" });
+    expect(height(screen.getByRole("button", { name: "New order" }))).toBe(standard);
+    expect(height(screen.getByRole("button", { name: "View order" }))).toBe(standard);
   });
 });
 
@@ -405,23 +572,25 @@ describe("POS — prices from the backend quote", () => {
       http.post("*/api/orders/quote", async ({ request }) => {
         const body = (await request.clone().json()) as QuoteRequest;
         quotes.push(body);
-        if (body.items[0].quantity === 1) await new Promise<void>((resolve) => (releaseFirst = resolve));
+        if (body.items[0].quantity === 2) await new Promise<void>((resolve) => (releaseFirst = resolve));
       })
     );
 
     await addProduct(user, "Water");
-    await waitFor(() => expect(quotes).toHaveLength(1));
-    expect(checkout()).toBeDisabled(); // no price yet
+    await expectTotal("0.500");
+    await user.click(within(cart()).getByRole("button", { name: "One more Water" }));
+    await waitFor(() => expect(quotes.some((quote) => quote.items[0].quantity === 2)).toBe(true));
+    expect(checkout()).toBeDisabled(); // the price of 2 waters has not arrived
 
     await user.click(within(cart()).getByRole("button", { name: "One more Water" }));
     expect(checkout()).toBeDisabled();
-    await expectTotal("1.000");
+    await expectTotal("1.500");
 
     await act(async () => {
       releaseFirst();
       await delay(50);
     });
-    expect(checkout()).toHaveAccessibleName("Checkout · 1.000 JOD");
+    expect(checkout()).toHaveAccessibleName("Checkout · 1.500 JOD");
     expect(checkout()).toBeEnabled();
   });
 

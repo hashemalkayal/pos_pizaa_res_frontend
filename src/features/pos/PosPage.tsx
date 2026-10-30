@@ -13,7 +13,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { useSession } from "@/features/auth/sessionContext";
-import { canAddLine, itemCount, newLineKey, type LineConfig } from "./model/cart";
+import { canAddLines, itemCount, newLineKey, type LineConfig } from "./model/cart";
 import { indexCatalog } from "./model/catalogView";
 import { buildCreateOrderRequest, buildQuoteRequest, draftProblems } from "./model/orderDraft";
 import { useCatalog, usePosQuote } from "./hooks/queries";
@@ -74,16 +74,18 @@ const PosPage = () => {
   const removeLine = useCallback((key: string) => dispatch({ type: "remove", key }), [dispatch]);
   const setQuantity = useCallback((key: string, quantity: number) => dispatch({ type: "setQuantity", key, quantity }), [dispatch]);
 
-  const submitLine = (config: LineConfig) => {
+  /** From the product dialog: one edited line, or one or more new configurations added in a single update. */
+  const submitConfigs = (configs: LineConfig[]) => {
     if (editor?.line) {
-      dispatch({ type: "update", key: editor.line.key, line: config });
-    } else if (!canAddLine(lines, config)) {
+      dispatch({ type: "update", key: editor.line.key, line: configs[0] });
+    } else if (!canAddLines(lines, configs)) {
       notifications.show({ color: "orange", message: t("pos.product.maxLines") });
-      return;
+      return false;
     } else {
-      dispatch({ type: "add", key: newLineKey(), line: config });
+      dispatch({ type: "addMany", lines: configs.map((line) => ({ key: newLineKey(), line })) });
     }
     setEditor(null);
+    return true;
   };
 
   const clearOrder = () =>
@@ -91,7 +93,8 @@ const PosPage = () => {
       title: t("pos.cart.clearTitle"),
       children: <Text size="sm">{t("pos.cart.clearBody")}</Text>,
       labels: { confirm: t("pos.cart.clearConfirm"), cancel: t("pos.cart.cancel") },
-      confirmProps: { color: "red" },
+      confirmProps: { color: "red", size: "action" },
+      cancelProps: { size: "action" },
       centered: true,
       onConfirm: resetOrder,
     });
@@ -194,13 +197,13 @@ const PosPage = () => {
               {quote.status === "current" ? <CurrencyText value={quote.quote.totalAmount} size="sm" /> : null}
             </div>
           </Group>
-          <Button radius="md" onClick={() => setSheetOpen(true)}>
+          <Button size="action" onClick={() => setSheetOpen(true)}>
             {t("pos.cart.mobileOpen")}
           </Button>
         </div>
       </div>
 
-      <ProductModal target={editor} onSubmit={submitLine} onClose={() => setEditor(null)} />
+      <ProductModal target={editor} onSubmit={submitConfigs} onClose={() => setEditor(null)} />
       <PaymentModal
         opened={paymentOpen}
         quote={quote.status === "current" ? quote.quote : null}

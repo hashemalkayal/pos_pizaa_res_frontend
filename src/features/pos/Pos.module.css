@@ -326,11 +326,6 @@
   opacity: 0.55;
 }
 
-.checkout {
-  height: 56px;
-  font-size: var(--mantine-font-size-lg);
-}
-
 /* ─── Mobile order bar and sheet backdrop ─────────────────────────────────── */
 
 .mobileBar {
@@ -460,6 +455,57 @@
   }
 }
 
+/* Configurations kept in the product dialog before "Add all to order": one compact row each. */
+.stagedList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stagedRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding-block: 6px;
+  padding-inline: 12px 6px;
+  border: 1px solid var(--ep-border);
+  border-radius: var(--mantine-radius-md);
+  background-color: var(--ep-card);
+}
+
+.stagedInfo {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.stagedMeta {
+  overflow: hidden;
+  color: rgba(35, 31, 32, 0.65);
+  font-size: var(--mantine-font-size-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.stagedNote {
+  margin-inline-start: 6px;
+  font-style: italic;
+
+  &:first-child {
+    margin-inline-start: 0;
+  }
+}
+
+.stagedControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
 /*
  * Dialog layout: the title and the action footer stay in place and only the middle scrolls, so there is one
  * scrollbar and the total and main action are always visible (Mantine's modal content scrolls as a whole).
@@ -491,6 +537,11 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
+
+  /* Focused by code only (after "Add another configuration"), so keyboard focus is not lost; not a control. */
+  &:focus {
+    outline: none;
+  }
 }
 
 .dialogFooter {

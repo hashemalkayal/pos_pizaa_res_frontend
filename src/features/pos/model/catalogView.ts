@@ -98,13 +98,6 @@ export const indexCatalog = (categories: CatalogCategory[]): CatalogIndex => {
 export const selectedAddOns = (product: CatalogProduct, addOnIds: number[]): ProductAddOn[] =>
   product.addOns.filter((addOn) => addOnIds.includes(addOn.addOnId));
 
-/**
- * Preview of a line total in the product dialog: (variant + add-ons) × quantity, in exact fils — the same
- * formula as the backend. The cart and checkout use the backend quote, never this preview.
- */
-export const linePreviewFils = (variant: CatalogVariant, addOns: ProductAddOn[], quantity: number) =>
-  (toFils(variant.price) + addOns.reduce((sum, addOn) => sum + toFils(addOn.price), 0)) * quantity;
-
 /** Case-, accent- and Arabic-letter-form-insensitive text for search (أ/إ/آ → ا, ة → ه, ى → ي, no tashkeel). */
 export const normalizeSearch = (text: string) =>
   text

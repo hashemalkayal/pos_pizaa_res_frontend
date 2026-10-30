@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogProduct } from "@/api/v2/catalog";
 import type { Customer } from "@/api/v2/customers";
+import type { OrderLine } from "@/api/v2/orders";
 import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
-import { canAddLine, cartReducer, itemCount, MAX_LINES, type CartLine, type LineConfig } from "./cart";
-import { doughTabs, labelWithoutDough, linePreviewFils, matchesSearch, normalizeSearch, selectedAddOns, sellableVariants, startingPrice, variantForDough } from "./catalogView";
+import { canAddLine, canAddLines, cartReducer, itemCount, MAX_LINES, quoteLineFor, type CartLine, type LineConfig } from "./cart";
+import { doughTabs, labelWithoutDough, matchesSearch, normalizeSearch, sellableVariants, startingPrice, variantForDough } from "./catalogView";
 import { formatDeliveryTime, isTimePickerValue } from "./deliveryTime";
 import { buildCreateOrderRequest, buildQuoteRequest, draftProblems, EMPTY_DRAFT, quoteKey, type OrderDraft } from "./orderDraft";
 import { cashState, quickCashAmounts } from "./payment";
@@ -66,6 +67,43 @@ describe("cart", () => {
     expect(add(lines, "extra", config({ comment: "one more" }))).toHaveLength(MAX_LINES);
     expect(canAddLine(lines, config({ comment: "note 3" }))).toBe(true);
     expect(add(lines, "extra", config({ comment: "note 3" }))[3].quantity).toBe(2);
+  });
+
+  it("addMany adds several configurations in one update, merging identical ones with each other and with the cart", () => {
+    const cart = add([], "a", config());
+    const next = cartReducer(cart, {
+      type: "addMany",
+      lines: [
+        { key: "b", line: config({ variantId: 102 }) },
+        { key: "c", line: config({ quantity: 2 }) }, // identical to the cart line "a"
+        { key: "d", line: config({ variantId: 103, addOnIds: [2] }) },
+        { key: "e", line: config({ variantId: 102 }) }, // identical to "b" in the same batch
+      ],
+    });
+    expect(next.map((line) => [line.key, line.variantId, line.quantity])).toEqual([
+      ["a", 101, 3],
+      ["b", 102, 2],
+      ["d", 103, 1],
+    ]);
+    expect(cart).toHaveLength(1); // the previous state is untouched
+  });
+
+  it("canAddLines: all configurations must fit together (identical ones count once)", () => {
+    let lines: CartLine[] = [];
+    for (let index = 0; index < MAX_LINES - 1; index += 1) lines = add(lines, `k${index}`, config({ comment: `note ${index}` }));
+    expect(canAddLines(lines, [config({ comment: "new" }), config({ comment: "new" })])).toBe(true);
+    expect(canAddLines(lines, [config({ comment: "new" }), config({ comment: "other" })])).toBe(false);
+    expect(canAddLines(lines, [config({ comment: "note 1" }), config({ comment: "new" })])).toBe(true);
+  });
+
+  it("quoteLineFor: a quote line counts only for exactly the same configuration", () => {
+    const line = config({ addOnIds: [1, 3], quantity: 2, comment: "well done" });
+    const priced = { variantId: 101, quantity: 2, comment: "well done", addOns: [{ addOnId: 3 }, { addOnId: 1 }], lineTotal: "12.000" } as unknown as OrderLine;
+    expect(quoteLineFor(line, priced)?.lineTotal).toBe("12.000");
+    expect(quoteLineFor({ ...line, quantity: 3 }, priced)).toBeUndefined();
+    expect(quoteLineFor({ ...line, addOnIds: [1] }, priced)).toBeUndefined();
+    expect(quoteLineFor({ ...line, comment: null }, priced)).toBeUndefined();
+    expect(quoteLineFor(line, undefined)).toBeUndefined();
   });
 });
 
@@ -202,10 +240,6 @@ describe("catalog view", () => {
     };
     expect(sellableVariants(product).map((variant) => variant.id)).toEqual([103]);
     expect(startingPrice(product)).toEqual({ price: "5.000", varies: false });
-  });
-
-  it("line preview = (variant + add-ons) × quantity, like the backend", () => {
-    expect(linePreviewFils(margherita.variants[1], selectedAddOns(margherita, [1, 3]), 3)).toBe(21000);
   });
 
   it("search ignores case, Arabic letter forms and diacritics", () => {

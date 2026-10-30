@@ -111,7 +111,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
             />
             <Group gap="xs">
               {quickCashAmounts(dueFils).map((amount, position) => (
-                <Button key={amount} variant="default" size="sm" disabled={submitting} onClick={() => setReceived(fromFils(amount))}>
+                <Button key={amount} variant="default" size="action-compact" disabled={submitting} onClick={() => setReceived(fromFils(amount))}>
                   {position === 0 ? t("pos.payment.exact") : <bdi dir="ltr">{fromFils(amount)}</bdi>}
                 </Button>
               ))}
@@ -152,7 +152,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
                     <Text size="sm">
                       {t("pos.payment.recoveryOrder", { number: order.orderNumber, amount: `${formatMoney(order.totalAmount)} ${t("currency.jod")}`, time: time(order.createdAt) })}
                     </Text>
-                    <Button size="compact-sm" variant="white" color="orange" onClick={() => onPickRecovered(order.id)}>
+                    <Button size="action-compact" variant="white" color="orange" onClick={() => onPickRecovered(order.id)}>
                       {t("pos.payment.recoveryThisOne")}
                     </Button>
                   </Group>
@@ -166,15 +166,15 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
       </Stack>
 
       <Group justify="space-between" gap="sm" className={classes.dialogFooter}>
-        <Button variant="default" onClick={onBack} disabled={submitting}>
+        <Button size="action" variant="default" onClick={onBack} disabled={submitting}>
           {t("pos.payment.back")}
         </Button>
         {recovery ? (
-          <Button color="orange" disabled={recovery.checking || submitting} loading={submitting} onClick={() => onConfirm(method, method === "CASH" ? cash.receivedFils : null)}>
+          <Button size="action" color="orange" disabled={recovery.checking || submitting} loading={submitting} onClick={() => onConfirm(method, method === "CASH" ? cash.receivedFils : null)}>
             {t("pos.payment.retry")}
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={!canConfirm} loading={submitting}>
+          <Button type="submit" size="action" disabled={!canConfirm} loading={submitting}>
             {submitting ? (
               t("pos.payment.saving")
             ) : (

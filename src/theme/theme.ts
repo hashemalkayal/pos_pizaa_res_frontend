@@ -1,4 +1,4 @@
-import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from "@mantine/core";
+import { ActionIcon, Button, createTheme, rem, type CSSVariablesResolver, type MantineColorsTuple } from "@mantine/core";
 import { brand, surfaces } from "./tokens";
 
 /** Brand yellow: shade 6 is the exact brand colour; shade 7 is its hover/pressed state. */
@@ -29,6 +29,14 @@ const charcoal: MantineColorsTuple = [
   brand.charcoal,
 ];
 
+/**
+ * Action sizes (opt-in, so other screens keep Mantine's scale): one standard for action buttons across the POS.
+ *   <Button size="action">          40px — primary and secondary actions (checkout, confirm, add, cancel…)
+ *   <Button size="action-compact">  34px — inline and secondary actions (clear, quick amounts, change…)
+ *   <ActionIcon size="action">      36px — icon-only actions (edit, remove…)
+ */
+export const ACTION_SIZES = { button: 40, compactButton: 34, icon: 36 } as const;
+
 const fontFamily = 'Tajawal, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
 
 export const theme = createTheme({
@@ -48,6 +56,16 @@ export const theme = createTheme({
     Card: { defaultProps: { radius: "lg", withBorder: true } },
     Paper: { defaultProps: { radius: "lg" } },
     Badge: { defaultProps: { radius: "sm" } },
+    Button: Button.extend({
+      vars: (_theme, props) => {
+        if (props.size === "action") return { root: { "--button-height": rem(ACTION_SIZES.button), "--button-padding-x": rem(18), "--button-fz": rem(15) } };
+        if (props.size === "action-compact") return { root: { "--button-height": rem(ACTION_SIZES.compactButton), "--button-padding-x": rem(12), "--button-fz": rem(14) } };
+        return { root: {} };
+      },
+    }),
+    ActionIcon: ActionIcon.extend({
+      vars: (_theme, props) => (props.size === "action" ? { root: { "--ai-size": rem(ACTION_SIZES.icon) } } : { root: {} }),
+    }),
   },
 });
 

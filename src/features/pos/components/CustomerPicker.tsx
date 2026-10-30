@@ -61,10 +61,10 @@ const NewCustomerModal = ({ opened, initialQuery, onClose, onSelect }: NewCustom
             </Text>
           ) : null}
           <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
+            <Button size="action" variant="default" onClick={onClose}>
               {t("pos.customer.cancel")}
             </Button>
-            <Button type="submit" loading={mutation.isPending}>
+            <Button size="action" type="submit" loading={mutation.isPending}>
               {t("pos.customer.save")}
             </Button>
           </Group>
@@ -110,11 +110,11 @@ export const CustomerPicker = ({ customer, onChange }: CustomerPickerProps) => {
             </div>
           </Group>
           <Group gap={4} wrap="nowrap">
-            <Button size="compact-sm" variant="subtle" color="charcoal" onClick={() => onChange(null)}>
+            <Button size="action-compact" variant="subtle" color="charcoal" onClick={() => onChange(null)}>
               {t("pos.customer.change")}
             </Button>
             <Tooltip label={t("pos.customer.remove")}>
-              <ActionIcon variant="subtle" color="gray" onClick={() => onChange(null)} aria-label={t("pos.customer.remove")}>
+              <ActionIcon size="action" variant="subtle" color="gray" onClick={() => onChange(null)} aria-label={t("pos.customer.remove")}>
                 <IconX size={16} />
               </ActionIcon>
             </Tooltip>
@@ -178,7 +178,7 @@ export const CustomerPicker = ({ customer, onChange }: CustomerPickerProps) => {
           </Combobox.Dropdown>
         </Combobox>
         <Tooltip label={t("pos.customer.new")}>
-          <ActionIcon size={36} variant="default" onClick={() => setCreating(true)} aria-label={t("pos.customer.new")}>
+          <ActionIcon size="action" variant="default" onClick={() => setCreating(true)} aria-label={t("pos.customer.new")}>
             <IconUserPlus size={18} />
           </ActionIcon>
         </Tooltip>

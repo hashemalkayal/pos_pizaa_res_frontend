@@ -42,7 +42,7 @@ const OrderDetails = ({ order }: { order: Order }) => {
           </Badge>
         </Group>
         <Group gap="sm">
-          <Button component={Link} to="/pos" variant="default" leftSection={i18n.dir() === "rtl" ? <IconArrowRight size={16} /> : <IconArrowLeft size={16} />}>
+          <Button component={Link} to="/pos" size="action" variant="default" leftSection={i18n.dir() === "rtl" ? <IconArrowRight size={16} /> : <IconArrowLeft size={16} />}>
             {t("order.back")}
           </Button>
         </Group>
@@ -147,7 +147,7 @@ const OrderDetailsPage = () => {
   if (notFound) {
     return (
       <EmptyState icon={<IconReceiptOff size={28} stroke={1.6} />} title={t("order.notFound")}>
-        <Button component={Link} to="/pos">
+        <Button component={Link} to="/pos" size="action">
           {t("order.back")}
         </Button>
       </EmptyState>

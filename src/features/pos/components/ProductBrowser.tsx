@@ -181,7 +181,7 @@ export const ProductBrowser = memo(({ categories, onSelect, searchRef }: Product
             title={query.trim() ? t("pos.browser.empty", { query: query.trim() }) : t("pos.browser.emptyCategory")}
           >
             {query.trim() ? (
-              <Button variant="default" onClick={() => setQuery("")}>
+              <Button size="action" variant="default" onClick={() => setQuery("")}>
                 {t("pos.browser.clearSearch")}
               </Button>
             ) : null}

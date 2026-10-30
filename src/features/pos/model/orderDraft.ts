@@ -1,7 +1,7 @@
 import type { Customer } from "@/api/v2/customers";
 import type { CreateOrderRequest, DeliveryInput, OrderLineInput, PaymentMethod, QuoteRequest } from "@/api/v2/orders";
 import { isMoneyInput, isPercentInput } from "@/lib/money";
-import type { CartLine } from "./cart";
+import type { CartLine, LineConfig } from "./cart";
 import { formatDeliveryTime, isTimePickerValue } from "./deliveryTime";
 
 /**
@@ -47,7 +47,8 @@ export const draftProblems = (draft: OrderDraft): DraftProblem[] => {
   return problems;
 };
 
-const lineInputs = (lines: CartLine[]): OrderLineInput[] =>
+/** Request items: ids, quantity and note only (the backend prices every line). */
+export const lineInputs = (lines: LineConfig[]): OrderLineInput[] =>
   lines.map((line) => ({
     variantId: line.variantId,
     quantity: line.quantity,
