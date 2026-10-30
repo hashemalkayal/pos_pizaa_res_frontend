@@ -5,5 +5,9 @@ export const apiBaseUrl = (): string => {
   return url.replace(/\/+$/, "");
 };
 
-/** True only in the dev server started with `yarn dev:mock`; always false in production builds. */
-export const isMockMode = (): boolean => import.meta.env.DEV && import.meta.env.VITE_API_MOCKING === "enabled";
+/**
+ * True only in the dev server started with `yarn dev:mock` (mode "mock" + `.env.mock`). Every other mode —
+ * `yarn dev` against the local DEV backend included — and every production build is always false.
+ */
+export const isMockMode = (): boolean =>
+  import.meta.env.DEV && import.meta.env.MODE === "mock" && import.meta.env.VITE_API_MOCKING === "enabled";

@@ -1,5 +1,9 @@
 import { useEffect, type ReactNode } from "react";
-import { DirectionProvider, MantineProvider, useDirection } from "@mantine/core";
+import {
+  DirectionProvider,
+  MantineProvider,
+  useDirection,
+} from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
@@ -23,15 +27,29 @@ interface AppProvidersProps {
   env?: "default" | "test";
 }
 
-export const AppProviders = ({ queryClient, children, env = "default" }: AppProvidersProps) => {
+export const AppProviders = ({
+  queryClient,
+  children,
+  env = "default",
+}: AppProvidersProps) => {
   const { i18n } = useTranslation();
   return (
-    <DirectionProvider initialDirection={directionOf(i18n.language)} detectDirection={false}>
-      <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} forceColorScheme="light" env={env}>
+    <DirectionProvider
+      initialDirection={directionOf(i18n.language)}
+      detectDirection={false}
+    >
+      <MantineProvider
+        theme={theme}
+        cssVariablesResolver={cssVariablesResolver}
+        forceColorScheme="light"
+        env={env}
+      >
         <DirectionSync />
         <ModalsProvider>
           <Notifications position="top-center" />
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
         </ModalsProvider>
       </MantineProvider>
     </DirectionProvider>

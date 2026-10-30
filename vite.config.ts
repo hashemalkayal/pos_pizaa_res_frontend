@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "node:path";
 import fs from "node:fs";
@@ -33,6 +33,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // Live contract tests need the real local backend: `yarn test:live` (vitest.live.config.ts).
+    exclude: [...configDefaults.exclude, "**/*.live.test.ts"],
     env: { VITE_PUBLIC_API_URL: "http://localhost:3000/api" },
     restoreMocks: true,
   },

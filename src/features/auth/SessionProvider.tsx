@@ -28,18 +28,22 @@ interface SessionState {
   signOutReason: SignOutReason | null;
 }
 
+/** Pure: StrictMode runs state initializers twice, so the expired token is cleared in an effect below. */
 const initialState = (): SessionState => {
   const stored = readStoredSession();
-  if (stored && isSessionExpired(stored)) {
-    clearStoredSession();
-    return { session: null, signOutReason: "expired" };
-  }
+  if (stored && isSessionExpired(stored)) return { session: null, signOutReason: "expired" };
   return { session: stored, signOutReason: null };
 };
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [state, setState] = useState(initialState);
+
+  // Forget a token that expired while the POS was closed.
+  const expired = !state.session && state.signOutReason === "expired";
+  useEffect(() => {
+    if (expired) clearStoredSession();
+  }, [expired]);
 
   const signOut = useCallback(
     (reason: SignOutReason = "signedOut") => {
