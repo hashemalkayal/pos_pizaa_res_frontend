@@ -57,7 +57,7 @@ src/
   i18n/         i18next setup and en/ar resources
   theme/        Mantine theme and brand tokens
   mocks/        MSW handlers and labelled fixtures (development/test only)
-  public-site/  public Landing and Menu pages (kept from the previous app, isolated)
+  public-site/  public Landing (V2 brand) and Menu (kept from the previous app) pages, isolated from the POS
   test/         test setup and helpers
 ```
 
@@ -73,4 +73,5 @@ The previous screens remain on `main`. Each is rebuilt on V2 data in the phase s
 | Customer dropdown | Customers | 3 |
 | Categories (item add/edit/delete) | Menu (categories, products, variants, add-ons) | 4 |
 | Home dashboard, Reports, Finance | Reports and Finance (V2 reports, CSV export) | 5 |
-| Landing, Menu (public) | Kept as they are (redesign deferred) | — |
+| Landing (public) | Landing: V2 brand, English / Arabic | done |
+| Menu (public) | Kept as it is (redesign deferred) | — |

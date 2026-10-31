@@ -590,5 +590,16 @@
     "integration": "التكامل الخارجي",
     "integrationHint": "الطلبات الواردة من نظام مركز الاتصال.",
     "unattributed": "طلبات بلا منشئ مسجّل: {{count}} ({{sales}} دينار). تُحتسب في الإجمالي فقط."
+  },
+  "landing": {
+    "tagline": "نعيد<accent>...</accent> تصميم المذاق",
+    "menu": "تصفّح المنيو",
+    "offers": "العروض",
+    "locations": "مواقعنا",
+    "connect": "تواصل معنا",
+    "newTab": "(يُفتح في علامة تبويب جديدة)",
+    "playVideo": "تشغيل فيديو الخلفية",
+    "pauseVideo": "إيقاف فيديو الخلفية مؤقتًا",
+    "copyright": "© {{year}} Engineers Pizza"
   }
 }

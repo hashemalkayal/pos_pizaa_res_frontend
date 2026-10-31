@@ -1,11 +1,205 @@
-/* Same appearance as the previous Tailwind version (redesign deferred). */
+/*
+ * Two sides, like the sign-in page: the charcoal brand panel (the official logo is placed on charcoal only) and the
+ * food video, blended into the panel. Phones and tablets: the video on top, fading into the panel below it.
+ */
 .page {
+  --ep-focus: var(--ep-yellow);
   position: relative;
-  height: 100vh;
-  width: 100%;
-  overflow: hidden;
-  text-align: center;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  background-color: var(--ep-charcoal);
   color: #ffffff;
+  isolation: isolate;
+}
+
+/* The brand's yellow accent bar (as under the sign-in brand panel). */
+.page::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 6px;
+  background-color: var(--ep-yellow);
+  z-index: 3;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 48px 30px;
+  overflow: hidden;
+}
+
+/* The gear of the logo, large and faint in the corner; kept away from the logo (its PNG background is opaque). */
+.gear {
+  position: absolute;
+  width: 440px;
+  height: 440px;
+  inset-inline-start: -160px;
+  bottom: -160px;
+  color: var(--ep-yellow);
+  opacity: 0.07;
+  pointer-events: none;
+  animation: spin 90s linear infinite;
+}
+
+.content {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.heading {
+  margin: 0;
+  animation: rise 700ms ease-out both;
+}
+
+/* The PNG has wide charcoal margins of its own: it may spill over the column's sides, onto the same charcoal. */
+.logo {
+  width: min(520px, calc(100% + 96px));
+  margin-inline: -48px;
+}
+
+.tagline {
+  margin: 0;
+  font-size: clamp(1.25rem, 0.95rem + 1vw, 1.65rem);
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.88);
+  animation: rise 700ms 120ms ease-out both;
+
+  &::after {
+    content: "";
+    display: block;
+    width: 48px;
+    height: 4px;
+    margin: 22px auto 0;
+    border-radius: 2px;
+    background-color: var(--ep-yellow);
+  }
+}
+
+.accent {
+  color: var(--ep-yellow);
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 30px;
+  animation: rise 700ms 240ms ease-out both;
+}
+
+.secondaryRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.primary {
+  font-weight: 700;
+  box-shadow: 0 10px 28px -10px rgba(247, 202, 39, 0.55);
+}
+
+.secondary {
+  border-color: rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-weight: 500;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+
+  @mixin hover {
+    border-color: var(--ep-yellow);
+    background-color: rgba(247, 202, 39, 0.1);
+    color: var(--ep-yellow);
+  }
+}
+
+/* Arrows point the reading way: mirrored in Arabic. */
+.mirror {
+  @mixin rtl {
+    transform: scaleX(-1);
+  }
+}
+
+.social {
+  margin-top: 36px;
+  animation: rise 700ms 360ms ease-out both;
+}
+
+.socialLabel {
+  margin: 0 0 12px;
+  font-size: var(--mantine-font-size-sm);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.socialLinks {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.socialLink {
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: transparent;
+  color: #ffffff;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+
+  @mixin hover {
+    border-color: var(--ep-yellow);
+    background-color: var(--ep-yellow);
+    color: var(--ep-charcoal);
+    transform: translateY(-2px);
+  }
+}
+
+.footer {
+  position: relative;
+  margin-top: 32px;
+  font-size: var(--mantine-font-size-xs);
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.media {
+  --blend-angle: 90deg;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--ep-charcoal);
+
+  @mixin rtl {
+    --blend-angle: -90deg;
+  }
+
+  /* Blends the video into the panel at its inline-start edge. */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(var(--blend-angle), var(--ep-charcoal) 0%, rgba(35, 31, 32, 0.55) 16%, rgba(35, 31, 32, 0) 42%),
+      rgba(35, 31, 32, 0.12);
+    pointer-events: none;
+  }
 }
 
 .video {
@@ -14,120 +208,83 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
 }
 
-.overlay {
+.videoToggle {
   position: absolute;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.4);
-  z-index: 10;
-}
-
-.content {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0 16px;
-  gap: 40px;
-}
-
-.title {
-  margin: 0;
-  font-size: 2.25rem;
-  font-weight: 800;
+  bottom: 24px;
+  inset-inline-end: 24px;
+  z-index: 1;
+  background-color: rgba(35, 31, 32, 0.6);
   color: #ffffff;
-  filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.07)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.06));
-}
+  backdrop-filter: blur(6px);
 
-.tagline {
-  margin: 8px 0 0;
-  font-size: 1rem;
-  font-style: italic;
-  color: #e5e7eb;
-}
-
-.accent {
-  color: var(--ep-yellow);
-}
-
-.buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 20rem;
-}
-
-.button {
-  height: 36px;
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  background-color: var(--ep-yellow);
-  color: var(--ep-charcoal);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-
-  &:hover {
-    background-color: rgba(247, 202, 39, 0.9);
-  }
-
-  &:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 2px;
+  @mixin hover {
+    background-color: rgba(35, 31, 32, 0.85);
+    color: var(--ep-yellow);
   }
 }
 
-.social {
-  margin-top: 32px;
+.toolbar {
+  position: absolute;
+  top: 20px;
+  inset-inline-end: 24px;
+  z-index: 2;
 }
 
-.socialLabel {
-  margin: 0 0 8px;
-  font-size: 0.875rem;
-  color: #ffffff;
-}
-
-.socialLinks {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.socialLink {
-  display: inline-flex;
-  padding: 12px;
-  border-radius: 9999px;
-  background-color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  transition: transform 150ms ease;
-
-  &:hover {
-    transform: scale(1.1);
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
 }
 
-.facebook {
-  color: #2563eb;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.instagram {
-  color: #ec4899;
-}
-
-@media (min-width: 48em) {
-  .title {
-    font-size: 3rem;
+@media (max-width: $mantine-breakpoint-md) {
+  .page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
 
-  .tagline {
-    font-size: 1.125rem;
+  .media {
+    grid-row: 1;
+    height: clamp(200px, 36svh, 380px);
+
+    /* Fades into the panel below it. */
+    &::after {
+      background: linear-gradient(to bottom, rgba(35, 31, 32, 0.1) 40%, var(--ep-charcoal) 100%);
+    }
+  }
+
+  .panel {
+    grid-row: 2;
+    padding: 0 16px 28px;
+  }
+
+  .gear {
+    width: 300px;
+    height: 300px;
+    inset-inline-start: -120px;
+    bottom: -110px;
+  }
+
+  .logo {
+    width: min(400px, calc(100% + 48px));
+    margin-inline: -24px;
+  }
+
+  .videoToggle {
+    bottom: 12px;
+    inset-inline-end: 16px;
+  }
+
+  .toolbar {
+    top: 16px;
+    inset-inline-end: 16px;
   }
 }

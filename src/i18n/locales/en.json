@@ -538,5 +538,16 @@
     "integration": "External integration",
     "integrationHint": "Orders received from the call-center system.",
     "unattributed": "Orders without a recorded creator: {{count}} ({{sales}} JOD). They are counted in the totals only."
+  },
+  "landing": {
+    "tagline": "Re<accent>...</accent> designing taste",
+    "menu": "View the menu",
+    "offers": "Offers",
+    "locations": "Locations",
+    "connect": "Connect with us",
+    "newTab": "(opens in a new tab)",
+    "playVideo": "Play the background video",
+    "pauseVideo": "Pause the background video",
+    "copyright": "© {{year}} Engineers Pizza"
   }
 }
