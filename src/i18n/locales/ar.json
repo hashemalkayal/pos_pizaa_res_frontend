@@ -106,6 +106,8 @@
       "searchShortcut": "اضغط / للبحث",
       "clearSearch": "مسح البحث",
       "categories": "الأصناف",
+      "previousCategories": "الفئات السابقة",
+      "nextCategories": "الفئات التالية",
       "all": "الكل",
       "loading": "جارٍ تحميل القائمة…",
       "error": "تعذّر تحميل القائمة.",

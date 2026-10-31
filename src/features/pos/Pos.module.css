@@ -41,10 +41,37 @@
   }
 }
 
+/* Category row: arrows fixed on both sides (when the categories overflow), the pills scroll between them. */
+.categoryScroller {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.categoryArrow {
+  flex: none;
+}
+
+.categoryViewport {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .categories {
   display: flex;
   gap: 8px;
-  padding-bottom: 2px;
+  width: max-content;
+  /* Room for the focus ring, so the first and last pills are never clipped. */
+  padding: 2px;
 }
 
 .category {

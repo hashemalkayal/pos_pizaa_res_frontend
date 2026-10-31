@@ -19,6 +19,7 @@ import { CurrencyText } from "@/components/money/CurrencyText";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { isSellable, matchesSearch, sellableVariants, startingPrice } from "../model/catalogView";
 import { useLocalized } from "../hooks/useLocalized";
+import { CategoryScroller } from "./CategoryScroller";
 import classes from "../Pos.module.css";
 
 /** Placeholder art for products without a photo, by category (the catalog has no photos yet). */
@@ -146,7 +147,7 @@ export const ProductBrowser = memo(({ categories, onSelect, searchRef }: Product
           size="md"
           radius="md"
         />
-        <ScrollArea type="hover" scrollbarSize={6} offsetScrollbars="x">
+        <CategoryScroller>
           <div className={classes.categories} role="group" aria-label={t("pos.browser.categories")}>
             <button type="button" className={classes.category} data-active={activeCategory === "all" || undefined} aria-pressed={activeCategory === "all"} onClick={() => selectCategory("all")}>
               {t("pos.browser.all")}
@@ -165,7 +166,7 @@ export const ProductBrowser = memo(({ categories, onSelect, searchRef }: Product
               </button>
             ))}
           </div>
-        </ScrollArea>
+        </CategoryScroller>
       </div>
 
       <ScrollArea className={classes.gridScroll} type="auto" scrollbarSize={8}>

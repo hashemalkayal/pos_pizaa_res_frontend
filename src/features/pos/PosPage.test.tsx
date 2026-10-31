@@ -33,7 +33,8 @@ afterEach(() => expect(quoteRequests, "quote requests").toBe(0));
 const openPos = async () => {
   signInAs("CASHER");
   renderApp("/pos");
-  await screen.findByRole("button", { name: /^Margherita/ });
+  // The first render loads the lazy POS route: allow more than the default 1 s when the suite runs in parallel.
+  await screen.findByRole("button", { name: /^Margherita/ }, { timeout: 5000 });
   return userEvent.setup();
 };
 

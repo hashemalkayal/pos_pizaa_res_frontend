@@ -102,6 +102,8 @@
       "searchShortcut": "Press / to search",
       "clearSearch": "Clear search",
       "categories": "Categories",
+      "previousCategories": "Previous categories",
+      "nextCategories": "Next categories",
       "all": "All",
       "loading": "Loading the menu…",
       "error": "The menu could not be loaded.",
