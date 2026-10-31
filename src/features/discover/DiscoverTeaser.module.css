@@ -1,0 +1,47 @@
+/* Teaser for planned modules inside an existing screen: subtle, never in the way of the screen's work. */
+
+.teaser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 14px 16px;
+  border: 1px dashed var(--mantine-color-charcoal-2);
+  border-radius: var(--mantine-radius-lg);
+  background: linear-gradient(135deg, var(--mantine-color-brand-0), var(--ep-card) 70%);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.body {
+  color: var(--mantine-color-charcoal-7);
+  line-height: 1.5;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ep-charcoal);
+  white-space: nowrap;
+}
+
+/* The arrow points forward in both reading directions. */
+.arrow {
+  :global([dir="rtl"]) & {
+    transform: scaleX(-1);
+  }
+}

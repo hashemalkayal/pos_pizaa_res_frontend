@@ -2,13 +2,14 @@ import { useState, type ReactNode } from "react";
 import { Alert, Paper, Table, Text, VisuallyHidden } from "@mantine/core";
 import { BarChart } from "@mantine/charts";
 import { DatePickerInput, DatesProvider } from "@mantine/dates";
-import { IconAlertTriangle, IconCalendar } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCalendar, IconScale } from "@tabler/icons-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { getFinanceOverview, type FinanceOverview } from "@/api/finance";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { CurrencyText } from "@/components/money/CurrencyText";
+import { DiscoverTeaser } from "@/features/discover/DiscoverTeaser";
 import { datesSettings } from "@/features/orders/datesLocale";
 import { useLocalized } from "@/features/pos/hooks/useLocalized";
 import { formatMoney } from "@/lib/money";
@@ -300,6 +301,8 @@ const FinancePage = () => {
                 </Section>
               </div>
             </div>
+
+            <DiscoverTeaser icon={<IconScale size={21} stroke={1.7} />} title={t("discover.teasers.finance.title")} body={t("discover.teasers.finance.body")} />
           </div>
         ) : null}
       </div>

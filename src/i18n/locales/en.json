@@ -9,7 +9,8 @@
     "orders": "Orders",
     "menu": "Menu",
     "reports": "Sales Reports",
-    "finance": "Finance"
+    "finance": "Finance",
+    "discover": "Discover More"
   },
   "shell": {
     "toggleNavigation": "Toggle navigation",
@@ -538,5 +539,206 @@
     "playVideo": "Play the background video",
     "pauseVideo": "Pause the background video",
     "copyright": "© {{year}} Engineers Pizza"
+  },
+  "discover": {
+    "eyebrow": "Product preview",
+    "title": "Explore what's next for Engineers Pizza POS",
+    "lead": "Your POS already runs orders, the menu, sales reports and finance. These are the modules being planned next — ideas to help you control costs, bring customers back and run busy shifts with less effort.",
+    "disclaimer": "Everything on this page is planned and not part of your current POS. Previews are illustrative and contain no real data. No release dates have been set.",
+    "statCapabilities_one": "planned capability",
+    "statCapabilities_other": "planned capabilities",
+    "statAreas_one": "area of your restaurant",
+    "statAreas_other": "areas of your restaurant",
+    "featuredTitle": "Featured previews",
+    "featuredHint": "A closer look at a few of the modules on the plan.",
+    "browseTitle": "All planned capabilities",
+    "browseHint": "Browse by area, or search for what matters most to your restaurant.",
+    "searchLabel": "Search planned capabilities",
+    "searchPlaceholder": "Search: stock, loyalty, delivery…",
+    "clearSearch": "Clear search",
+    "filterLabel": "Filter by area",
+    "allAreas": "All areas",
+    "showing": "Showing {{shown}} of {{total}} planned capabilities",
+    "emptyTitle": "No planned capability matches your search",
+    "emptyHint": "Try another word, or show every area.",
+    "showAll": "Show all",
+    "planned": "Planned",
+    "illustrative": "Illustrative preview",
+    "illustration": "Illustration",
+    "calloutTitle": "Which of these would help your restaurant most?",
+    "calloutBody": "Nothing here is scheduled yet. Share which modules matter most to you with the team that looks after your POS — that feedback helps decide what gets built first.",
+    "teaserLink": "Explore what's next",
+    "teasers": {
+      "finance": {
+        "title": "Profit and food-cost insights",
+        "body": "Future modules could put your costs next to these sales — profit day by day, food cost by item and sales estimates. They are not available yet."
+      },
+      "menu": {
+        "title": "Ingredient stock and recipe costing",
+        "body": "Future modules could track the stock of your ingredients and show what each dish costs to make. They are not available yet."
+      }
+    },
+    "categories": {
+      "inventory": {
+        "title": "Inventory & Purchasing",
+        "description": "Know what you have, what it costs and what to order."
+      },
+      "customers": {
+        "title": "Customers & Marketing",
+        "description": "Turn first-time guests into regulars."
+      },
+      "insights": {
+        "title": "Business Intelligence",
+        "description": "See the profit behind your sales, not just the sales."
+      },
+      "operations": {
+        "title": "Operations & Staff",
+        "description": "Smoother shifts, from the kitchen to the dining room."
+      },
+      "delivery": {
+        "title": "Delivery & Digital Ordering",
+        "description": "Take more orders online and deliver them with confidence."
+      }
+    },
+    "items": {
+      "stock": {
+        "title": "Ingredient Stock Tracking",
+        "description": "Keep a running count of dough, cheese and toppings as orders are sold, so you know what's on the shelf."
+      },
+      "lowStock": {
+        "title": "Low Stock Alerts",
+        "description": "Get a heads-up before an ingredient runs out — not in the middle of the dinner rush."
+      },
+      "recipeCosting": {
+        "title": "Recipe Costing",
+        "description": "See what every pizza, size and add-on costs to make, built on the ingredient lists already in your menu.",
+        "highlight1": "Cost per dish and size",
+        "highlight2": "Margin for every menu item",
+        "highlight3": "See how ingredient price changes affect each dish"
+      },
+      "suppliers": {
+        "title": "Supplier Management",
+        "description": "Keep suppliers, their prices and contact details in one place instead of scattered notes."
+      },
+      "purchaseOrders": {
+        "title": "Purchase Orders",
+        "description": "Prepare supplier orders from what's running low, and check off what has arrived."
+      },
+      "waste": {
+        "title": "Waste Tracking",
+        "description": "Record spoiled or discarded ingredients to see where money is being thrown away."
+      },
+      "crm": {
+        "title": "Customer Profiles",
+        "description": "Go beyond a name and phone number: see each regular's order history, favourites and notes before taking their order."
+      },
+      "loyalty": {
+        "title": "Loyalty Points",
+        "description": "Reward repeat visits with points customers can redeem — one more reason to choose you again.",
+        "highlight1": "Points with every order",
+        "highlight2": "Rewards redeemed at the till",
+        "highlight3": "See who your most loyal customers are"
+      },
+      "giftCards": {
+        "title": "Gift Cards",
+        "description": "Sell gift cards in the restaurant and accept them as payment at the till."
+      },
+      "sms": {
+        "title": "SMS Campaigns",
+        "description": "Tell customers who agreed to hear from you about a new pizza or a quiet-night offer."
+      },
+      "segments": {
+        "title": "Customer Segmentation",
+        "description": "Group customers by how often and how much they order, and speak to each group differently."
+      },
+      "birthdays": {
+        "title": "Birthday Offers",
+        "description": "Surprise customers who share their birthday with you with a small treat on their day."
+      },
+      "profitLoss": {
+        "title": "Profit & Loss Dashboard",
+        "description": "Put your costs next to your sales to see what each day, week and month actually earns.",
+        "highlight1": "Sales, costs and profit side by side",
+        "highlight2": "Daily, weekly and monthly views",
+        "highlight3": "Built on the sales the POS already records"
+      },
+      "foodCost": {
+        "title": "Food Cost Analysis",
+        "description": "Compare what dishes cost to make with what they sell for, by item and by category."
+      },
+      "forecasting": {
+        "title": "Sales Forecasting",
+        "description": "Estimate busy days and hours from your past sales, to plan dough, stock and staff ahead."
+      },
+      "branches": {
+        "title": "Branch Comparison",
+        "description": "For when you open another location: compare sales and costs across branches side by side."
+      },
+      "highlights": {
+        "title": "Business Highlights",
+        "description": "A short summary of what changed — busiest hours, best sellers and unusual dips — without digging through reports."
+      },
+      "goals": {
+        "title": "Performance Goals",
+        "description": "Set targets for sales or orders and follow the progress through the week."
+      },
+      "kds": {
+        "title": "Kitchen Display System",
+        "description": "Show new orders on a kitchen screen alongside — or instead of — paper tickets, with a timer on every order.",
+        "highlight1": "Orders appear the moment they are placed",
+        "highlight2": "Preparing and ready at a glance",
+        "highlight3": "Timers that flag orders running late"
+      },
+      "tables": {
+        "title": "Table Management",
+        "description": "See which tables are free, seated or waiting for the bill, and link dine-in orders to them."
+      },
+      "scheduling": {
+        "title": "Staff Scheduling",
+        "description": "Plan the week's shifts and see who is working when, in one shared schedule."
+      },
+      "attendance": {
+        "title": "Employee Attendance",
+        "description": "Record when staff start and finish their shifts, ready for payroll."
+      },
+      "reconciliation": {
+        "title": "Shift Reconciliation",
+        "description": "Count the cash drawer at the end of a shift and compare it with that shift's sales."
+      },
+      "workflows": {
+        "title": "Operational Checklists",
+        "description": "Opening, closing and cleaning checklists your team ticks off on screen."
+      },
+      "drivers": {
+        "title": "Driver Management",
+        "description": "Assign delivery orders to drivers and see who is out and who is back."
+      },
+      "liveTracking": {
+        "title": "Live Delivery Tracking",
+        "description": "Follow orders from the oven to the customer's door, so you can answer “where is my order?” in seconds.",
+        "highlight1": "Every delivery's progress on a map",
+        "highlight2": "An estimated arrival time to share with the customer",
+        "highlight3": "Quick answers when a customer calls"
+      },
+      "website": {
+        "title": "Online Ordering Website",
+        "description": "Let customers order directly from your own website, with your menu and prices kept in step with the POS.",
+        "highlight1": "Your menu, your prices, your brand",
+        "highlight2": "Orders arrive in the POS like any other",
+        "highlight3": "Pickup or delivery"
+      },
+      "qr": {
+        "title": "QR Table Ordering",
+        "description": "Guests scan a code at their table to order — and the order goes straight to the kitchen."
+      },
+      "statusScreen": {
+        "title": "Order Status Screen",
+        "description": "A screen in the restaurant showing which orders are being prepared and which are ready for pickup."
+      },
+      "zones": {
+        "title": "Delivery Zone Management",
+        "description": "Draw your delivery areas once and apply each zone's delivery fee automatically."
+      }
+    }
   }
 }

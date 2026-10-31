@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { IconPackages } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { toApiError } from "@/api/errors";
 import { createCategory, deleteCategory, updateCategory, type MenuCategory } from "@/api/menu";
+import { DiscoverTeaser } from "@/features/discover/DiscoverTeaser";
 import { useCatalog } from "@/features/pos/hooks/queries";
 import { useLocalized } from "@/features/pos/hooks/useLocalized";
 import { categoryIcon } from "@/features/pos/model/categoryIcon";
@@ -148,6 +150,7 @@ export const CategoriesLevel = ({ onOpen }: { onOpen: (categoryId: number) => vo
         items={items}
         countText={t("menu.count.categories", { count: items?.length ?? 0 })}
         emptyTitle={term ? t("menu.emptyFiltered") : t("menu.empty.categories")}
+        footer={term ? null : <DiscoverTeaser icon={<IconPackages size={21} stroke={1.7} />} title={t("discover.teasers.menu.title")} body={t("discover.teasers.menu.body")} />}
         renderCard={(category) => (
           <MenuCard
             key={category.id}

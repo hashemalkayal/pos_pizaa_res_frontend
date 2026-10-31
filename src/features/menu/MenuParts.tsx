@@ -33,10 +33,12 @@ interface MenuListProps<T> {
   notice?: ReactNode;
   renderCard: (item: T) => ReactNode;
   pagination?: { page: number; totalPages: number; onChange: (page: number) => void };
+  /** After the cards, inside the scrolling list (e.g. a note about planned modules). */
+  footer?: ReactNode;
 }
 
 /** Toolbar (search + Add), count, cards that scroll, and the pagination at the bottom — the Orders/Customers frame. */
-export const MenuList = <T,>({ header, toolbar, addLabel, onAdd, addDisabled, query, items, countText, emptyTitle, emptyAction, notice, renderCard, pagination }: MenuListProps<T>) => {
+export const MenuList = <T,>({ header, toolbar, addLabel, onAdd, addDisabled, query, items, countText, emptyTitle, emptyAction, notice, renderCard, pagination, footer }: MenuListProps<T>) => {
   const { t } = useTranslation();
   const compactPagination = useMatches({ base: true, sm: false });
   return (
@@ -65,9 +67,12 @@ export const MenuList = <T,>({ header, toolbar, addLabel, onAdd, addDisabled, qu
             {emptyAction}
           </EmptyState>
         ) : (
-          <div className={classes.grid} data-stale={query.isPlaceholderData || undefined}>
-            {items.map(renderCard)}
-          </div>
+          <>
+            <div className={classes.grid} data-stale={query.isPlaceholderData || undefined}>
+              {items.map(renderCard)}
+            </div>
+            {footer ? <div className={classes.listFooter}>{footer}</div> : null}
+          </>
         )}
       </div>
       {!notice && pagination && items?.length ? (

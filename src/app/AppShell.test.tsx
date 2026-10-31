@@ -57,12 +57,12 @@ describe("application shell", () => {
     expect(await screen.findByText("Page not found")).toBeInTheDocument();
   });
 
-  it("admin also sees Menu, Sales Reports and Finance, none of them planned any more", async () => {
+  it("admin also sees Menu, Sales Reports, Finance and Discover More", async () => {
     signInAs("ADMIN");
     renderApp("/reports");
     expect(await screen.findByRole("heading", { level: 1, name: "Sales Reports" })).toBeInTheDocument();
     const links = within(navigation()).getAllByRole("link").map((link) => link.textContent);
-    expect(links).toEqual(["POS", "Orders", "Menu", "Sales Reports", "Finance"]); // no "Soon" badge left
+    expect(links).toEqual(["POS", "Orders", "Menu", "Sales Reports", "Finance", "Discover More"]);
   });
 
   it("a cashier opening an admin-only address sees the role notice", async () => {

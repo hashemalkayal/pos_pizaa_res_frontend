@@ -58,6 +58,11 @@
   }
 }
 
+/* After the cards, inside the scrolling list (the planned-modules note on the categories level). */
+.listFooter {
+  margin-top: var(--mantine-spacing-lg);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
