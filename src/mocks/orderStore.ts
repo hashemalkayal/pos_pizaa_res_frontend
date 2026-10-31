@@ -330,7 +330,12 @@ export const deleteCustomer = (id: number) => {
  * POS order by `creator`: priced, numbered per business date and "printed" (the mocks print nothing). A different
  * `expectedTotal` → 409 PRICE_MISMATCH with the current pricing, before anything is written (D77).
  */
-export const createOrder = (body: CreateBody, creator: { id: number; name: string | null }): Order => {
+export const createOrder = (
+  body: CreateBody,
+  creator: { id: number; name: string | null; type?: "USER" | "API_CLIENT" },
+  /** Creation time (tests); an API_CLIENT creator makes an EXTERNAL order, like the integration. */
+  at = new Date()
+): Order => {
   const priced = quote(body);
   if (!isAbsent(body.expectedTotal) && fils(String(body.expectedTotal).trim()) !== fils(priced.totalAmount)) {
     throw new MockError(409, "PRICE_MISMATCH", "The order total has changed. Check the new total and confirm again.", {
@@ -347,7 +352,7 @@ export const createOrder = (body: CreateBody, creator: { id: number; name: strin
     customer = activeByNameAndPhone(body.customer.name, body.customer.phone) ?? insertCustomer(body.customer.name, body.customer.phone);
   }
 
-  const now = new Date();
+  const now = at;
   const date = businessDate(now);
   const orderNumber = (dailyCounters.get(date) ?? 0) + 1;
   dailyCounters.set(date, orderNumber);
@@ -355,8 +360,8 @@ export const createOrder = (body: CreateBody, creator: { id: number; name: strin
   const order: Order = {
     id: nextOrderId++,
     orderNumber,
-    type: "POS",
-    createdBy: { type: "USER", id: creator.id, name: creator.name },
+    type: creator.type === "API_CLIENT" ? "EXTERNAL" : "POS",
+    createdBy: { type: creator.type ?? "USER", id: creator.id, name: creator.name },
     createdAt: now.toISOString(),
     businessDate: date,
     status: "ACTIVE",
@@ -405,6 +410,120 @@ export const listOrders = (query: {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
     .map(({ items, ...header }) => ({ ...header, itemCount: items.length }));
   return paginate(rows, query.pageSize, query.page);
+};
+
+// ─── Sales report ────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/reports/sales (backend report-aggregation salesRows + sales-report.service), in integer fils: ACTIVE orders
+ * of the months (business dates); one row per product configuration (variant + unit + option value ids; item price ×
+ * quantity) and one per add-on (add-on price × item quantity); latest names; totals and the reconciliation.
+ */
+export const salesReport = (fromMonth: string, toMonth: string) => {
+  const eligible = orders.filter((order) => order.status === "ACTIVE" && order.businessDate.slice(0, 7) >= fromMonth && order.businessDate.slice(0, 7) <= toMonth);
+  type Row = { type: "PRODUCT" | "ADDON"; key: string; productId: number | null; variantId: number | null; addOnId: number | null; nameEn: string; nameAr: string; configurationEn: string | null; configurationAr: string | null; quantity: number; fils: number };
+  const rows = new Map<string, Row>();
+  const add = (row: Omit<Row, "quantity" | "fils">, quantity: number, amount: number) => {
+    const current = rows.get(row.key) ?? { ...row, quantity: 0, fils: 0 };
+    rows.set(row.key, { ...current, ...row, quantity: current.quantity + quantity, fils: current.fils + amount });
+  };
+  for (const order of eligible) {
+    for (const line of order.items) {
+      const valueIds = line.options.map((option) => option.valueId).sort((a, b) => a - b).join(",");
+      add(
+        { type: "PRODUCT", key: `P:${line.variantId}:${line.unit?.id ?? 0}:${valueIds}`, productId: line.productId, variantId: line.variantId, addOnId: null, nameEn: line.productNameEn, nameAr: line.productNameAr, configurationEn: line.variantLabelEn, configurationAr: line.variantLabelAr },
+        line.quantity,
+        fils(line.unitPrice) * line.quantity
+      );
+      for (const addOn of line.addOns) {
+        add(
+          { type: "ADDON", key: `A:${addOn.addOnId}`, productId: null, variantId: null, addOnId: addOn.addOnId, nameEn: addOn.nameEn, nameAr: addOn.nameAr, configurationEn: null, configurationAr: null },
+          line.quantity,
+          fils(addOn.unitPrice) * line.quantity
+        );
+      }
+    }
+  }
+  const sorted = [...rows.values()].sort(
+    (a, b) =>
+      (a.type === b.type ? 0 : a.type === "PRODUCT" ? -1 : 1) ||
+      a.nameEn.localeCompare(b.nameEn, "en", { sensitivity: "base" }) ||
+      (a.productId ?? a.addOnId ?? 0) - (b.productId ?? b.addOnId ?? 0) ||
+      (a.configurationEn ?? "").localeCompare(b.configurationEn ?? "", "en")
+  );
+  const total = (type: Row["type"]) => {
+    const list = sorted.filter((row) => row.type === type);
+    return { quantity: list.reduce((n, row) => n + row.quantity, 0), fils: list.reduce((n, row) => n + row.fils, 0) };
+  };
+  const products = total("PRODUCT");
+  const addOns = total("ADDON");
+  const sum = (field: "subtotal" | "discountAmount" | "deliveryPrice" | "totalAmount") => eligible.reduce((n, order) => n + fils(order[field]), 0);
+  const [year, month] = toMonth.split("-").map(Number);
+  return {
+    fromMonth,
+    toMonth,
+    from: `${fromMonth}-01`,
+    to: new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10),
+    timeZone: "Asia/Amman",
+    rows: sorted.map(({ fils: amount, ...row }) => ({ ...row, sales: money(amount) })),
+    totals: {
+      orders: eligible.length,
+      products: { quantity: products.quantity, sales: money(products.fils) },
+      addOns: { quantity: addOns.quantity, sales: money(addOns.fils) },
+      merchandise: money(products.fils + addOns.fils),
+      orderDiscounts: money(sum("discountAmount")),
+      deliveryFees: money(sum("deliveryPrice")),
+      charged: money(sum("totalAmount")),
+      reconciled: products.fils + addOns.fils === sum("subtotal"),
+    },
+  };
+};
+
+// ─── Finance overview ────────────────────────────────────────────────────────
+
+const hourFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: "Asia/Amman" });
+
+/**
+ * GET /api/reports/finance/overview (backend report-aggregation financeFigures), in integer fils: ACTIVE orders of the
+ * business dates; sales = Σ totalAmount; hours of the creation time in Asia/Amman over every day; cashiers = USER
+ * creators, integration = API_CLIENT creators; top items per variant: quantity and Σ unitPrice × quantity.
+ */
+export const financeOverview = (from: string, to: string) => {
+  const eligible = orders.filter((order) => order.status === "ACTIVE" && order.businessDate >= from && order.businessDate <= to);
+  const figure = (list: Order[]) => ({ orders: list.length, sales: money(list.reduce((sum, order) => sum + fils(order.totalAmount), 0)) });
+  const groupBy = (list: Order[]) => {
+    const groups = new Map<number, Order[]>();
+    for (const order of list) groups.set(order.createdBy.id, [...(groups.get(order.createdBy.id) ?? []), order]);
+    return [...groups.values()].map((group) => ({ id: group[0].createdBy.id, name: group[0].createdBy.name, ...figure(group) }));
+  };
+  const bySales = (a: { orders: number; sales: string }, b: { orders: number; sales: string }) => fils(b.sales) - fils(a.sales) || b.orders - a.orders;
+  const integration = eligible.filter((order) => order.createdBy.type === "API_CLIENT");
+  const items = new Map<number, { variantId: number; productId: number; productNameEn: string; productNameAr: string; labelEn: string | null; labelAr: string | null; quantity: number; fils: number }>();
+  for (const order of eligible) {
+    for (const line of order.items) {
+      const item = items.get(line.variantId) ?? { variantId: line.variantId, productId: line.productId, productNameEn: "", productNameAr: "", labelEn: null, labelAr: null, quantity: 0, fils: 0 };
+      Object.assign(item, { productNameEn: line.productNameEn, productNameAr: line.productNameAr, labelEn: line.variantLabelEn, labelAr: line.variantLabelAr });
+      item.quantity += line.quantity;
+      item.fils += fils(line.unitPrice) * line.quantity;
+      items.set(line.variantId, item);
+    }
+  }
+  return {
+    from,
+    to,
+    timeZone: "Asia/Amman",
+    totals: figure(eligible),
+    byHour: Array.from({ length: 24 }, (_, hour) => ({ hour, ...figure(eligible.filter((order) => Number(hourFormat.format(new Date(order.createdAt))) === hour)) })),
+    topItems: [...items.values()]
+      .sort((a, b) => b.quantity - a.quantity || b.fils - a.fils || a.variantId - b.variantId)
+      .slice(0, 5)
+      .map(({ fils: amount, ...item }) => ({ ...item, sales: money(amount) })),
+    cashiers: groupBy(eligible.filter((order) => order.createdBy.type === "USER"))
+      .map(({ id, ...row }) => ({ userId: id, ...row }))
+      .sort(bySales),
+    integration: { ...figure(integration), clients: groupBy(integration).map(({ id, ...row }) => ({ apiClientId: id, ...row })).sort(bySales) },
+    unattributed: { orders: 0, sales: "0.000" },
+  };
 };
 
 /** Header mutations (backend assertMutable): a cancelled order never changes; a stale version is refused. */

@@ -97,6 +97,20 @@ const listQuery = (request: Request) => {
   return { categoryId: number("categoryId"), q: url.searchParams.get("q") ?? undefined, page: number("page"), pageSize: number("pageSize") };
 };
 
+/** Sales report months (backend resolveMonths): YYYY-MM, default the current month, from ≤ to, at most 12 months. */
+const salesMonths = (url: URL) => {
+  const current = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Amman" }).format(new Date()).slice(0, 7);
+  const fromMonth = url.searchParams.get("fromMonth") ?? url.searchParams.get("toMonth") ?? current;
+  const toMonth = url.searchParams.get("toMonth") ?? url.searchParams.get("fromMonth") ?? current;
+  const valid = (value: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+  if (!valid(fromMonth) || !valid(toMonth) || fromMonth > toMonth) {
+    return { error: appError(422, "REPORT_RANGE_INVALID", "fromMonth and toMonth must be months (YYYY-MM) with fromMonth ≤ toMonth.") };
+  }
+  const months = (Number(toMonth.slice(0, 4)) - Number(fromMonth.slice(0, 4))) * 12 + Number(toMonth.slice(5)) - Number(fromMonth.slice(5)) + 1;
+  if (months > 12) return { error: appError(422, "REPORT_RANGE_TOO_LARGE", "A sales report covers at most 12 months.") };
+  return { fromMonth, toMonth };
+};
+
 /** Menu management (D80): reads for every signed-in user, changes for ADMIN only. */
 const menuHandlers = [
   http.get("*/api/categories", ({ request }) => {
@@ -208,6 +222,52 @@ const menuHandlers = [
     const auth = authenticateAdmin(request);
     if (auth.error) return auth.error;
     return attempt(() => envelope(menu.archiveAddOn(routeId(params.id, "ADDON_NOT_FOUND")), "Add-on deleted."));
+  }),
+
+  // Phase 6: ADMIN only. Inclusive months (YYYY-MM), default the current month, fromMonth ≤ toMonth, ≤ 12 months.
+  http.get("*/api/reports/sales", ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const range = salesMonths(new URL(request.url));
+    if ("error" in range) return range.error;
+    // One page of rows (20 by default), the totals of every row (backend salesReport).
+    const { rows, ...report } = store.salesReport(range.fromMonth, range.toMonth);
+    const url = new URL(request.url);
+    const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
+    const pageSize = Number(url.searchParams.get("pageSize") ?? 20);
+    const pagination = { page, pageSize, total: rows.length, totalPages: Math.max(1, Math.ceil(rows.length / pageSize)) };
+    return envelope({ ...report, rows: rows.slice((page - 1) * pageSize, page * pageSize), pagination }, "Sales report fetched.");
+  }),
+
+  // The mocks have no Excel writer: a placeholder file with the backend's headers (the backend builds the .xlsx).
+  http.get("*/api/reports/sales/export", ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const range = salesMonths(new URL(request.url));
+    if ("error" in range) return range.error;
+    return new HttpResponse(new Blob(["mock xlsx"]), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="sales-report_${range.fromMonth}_${range.toMonth}.xlsx"`,
+      },
+    });
+  }),
+
+  // Phase 7: ADMIN only. Range as every report: inclusive business dates, default today, from ≤ to, ≤ 366 days.
+  http.get("*/api/reports/finance/overview", ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const url = new URL(request.url);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Amman" }).format(new Date());
+    const from = url.searchParams.get("from") ?? url.searchParams.get("to") ?? today;
+    const to = url.searchParams.get("to") ?? url.searchParams.get("from") ?? today;
+    const day = (value: string) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? Date.parse(`${value}T00:00:00Z`) : NaN);
+    if (Number.isNaN(day(from)) || Number.isNaN(day(to)) || from > to) return appError(422, "REPORT_RANGE_INVALID", "from and to must be dates (YYYY-MM-DD) with from ≤ to.");
+    if ((day(to) - day(from)) / 86_400_000 + 1 > 366) return appError(422, "REPORT_RANGE_TOO_LARGE", "A report covers at most 366 days.");
+    const overview = store.financeOverview(from, to);
+    // Cashiers are shown by email, like the backend (users have no other name).
+    const cashiers = overview.cashiers.map((row) => ({ ...row, name: MOCK_USERS.find((user) => user.id === row.userId)?.email ?? null }));
+    return envelope({ ...overview, cashiers }, "Finance overview fetched.");
   }),
 
   http.get("*/api/units", ({ request }) => {

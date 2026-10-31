@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dates/styles.css";
+import "@mantine/charts/styles.css";
 import "./theme/global.css";
 import "./i18n";
 import { App } from "./app/App";

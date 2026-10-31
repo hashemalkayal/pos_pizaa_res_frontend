@@ -1,0 +1,148 @@
+/* Finance overview: one date range, two summary cards, sales by hour, top items, cashiers and the integration. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 16px;
+}
+
+.range {
+  flex: 0 1 300px;
+  min-width: 240px;
+}
+
+.rangeHint {
+  flex: 1 1 260px;
+  padding-bottom: 8px;
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+  .range {
+    flex: 1 1 100%;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+  transition: opacity 120ms ease;
+
+  &[data-stale] {
+    opacity: 0.6;
+  }
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--ep-border);
+  border-radius: var(--mantine-radius-lg);
+  background-color: var(--ep-card);
+}
+
+.sectionTitle {
+  margin: 0 0 4px;
+  font-weight: 800;
+  font-size: var(--mantine-font-size-md);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+
+  @media (max-width: $mantine-breakpoint-md) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Top items: rank, name and option, quantity and sales. */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--ep-border);
+  border-radius: var(--mantine-radius-md);
+}
+
+.rank {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--mantine-color-brand-1);
+  color: var(--ep-charcoal);
+  font-weight: 800;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.itemName {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.itemFigures {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.table {
+  font-size: var(--mantine-font-size-sm);
+}
+
+.cashier {
+  overflow-wrap: anywhere;
+}
+
+.totalRow td {
+  border-top: 1px solid var(--ep-border);
+  font-weight: 800;
+}

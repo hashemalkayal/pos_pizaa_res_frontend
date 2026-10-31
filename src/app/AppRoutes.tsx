@@ -21,6 +21,8 @@ const PublicMenu = lazy(() => import("@/public-site/Menu"));
 const PosPage = lazy(() => import("@/features/pos/PosPage"));
 const OrdersPage = lazy(() => import("@/features/orders/OrdersPage"));
 const MenuPage = lazy(() => import("@/features/menu/MenuPage"));
+const FinancePage = lazy(() => import("@/features/finance/FinancePage"));
+const SalesReportsPage = lazy(() => import("@/features/reports/SalesReportsPage"));
 
 /**
  * The Orders tab opens an order in its drawer at /orders/:orderId, and Menu keeps its tab at /catalog/:tab: one route
@@ -75,6 +77,10 @@ export const AppRoutes = () => (
               lazyPage(<OrdersPage />)
             ) : section.id === "menu" ? (
               lazyPage(<MenuPage />)
+            ) : section.id === "finance" ? (
+              lazyPage(<FinancePage />)
+            ) : section.id === "reports" ? (
+              lazyPage(<SalesReportsPage />)
             ) : (
               <PlannedSectionPage section={section} />
             );

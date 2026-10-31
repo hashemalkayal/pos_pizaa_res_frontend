@@ -57,25 +57,18 @@ describe("application shell", () => {
     expect(await screen.findByText("Page not found")).toBeInTheDocument();
   });
 
-  it("admin also sees Menu, Reports and Finance; a cashier opening /reports gets the role notice", async () => {
+  it("admin also sees Menu, Sales Reports and Finance, none of them planned any more", async () => {
     signInAs("ADMIN");
     renderApp("/reports");
-    expect(await screen.findByText("Reports is being rebuilt")).toBeInTheDocument();
-    expect(within(navigation()).getByRole("link", { name: /Finance/ })).toBeInTheDocument();
-    expect(within(navigation()).getByRole("link", { name: /Menu/ })).not.toHaveTextContent("Soon"); // Phase 5 delivered
+    expect(await screen.findByRole("heading", { level: 1, name: "Sales Reports" })).toBeInTheDocument();
+    const links = within(navigation()).getAllByRole("link").map((link) => link.textContent);
+    expect(links).toEqual(["POS", "Orders", "Menu", "Sales Reports", "Finance"]); // no "Soon" badge left
   });
 
   it("a cashier opening an admin-only address sees the role notice", async () => {
     signInAs("CASHER");
     renderApp("/finance");
     expect(await screen.findByText("Not available for your role")).toBeInTheDocument();
-  });
-
-  it("planned sections say which phase delivers them (no fake data)", async () => {
-    signInAs("ADMIN");
-    renderApp("/reports");
-    expect(await screen.findByText("Reports is being rebuilt")).toBeInTheDocument();
-    expect(screen.getByText("Phase 5")).toBeInTheDocument();
   });
 
   it("sign out clears the session and returns to sign-in", async () => {

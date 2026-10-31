@@ -1,0 +1,83 @@
+/* Sales Reports: the month range and Export Excel, then one table with its totals. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.month {
+  flex: 0 1 220px;
+  min-width: 180px;
+}
+
+/* Aligned with the inputs (below their labels). */
+.export {
+  margin-top: 25px;
+  margin-inline-start: auto;
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+  .month,
+  .export {
+    flex: 1 1 100%;
+    margin-inline-start: 0;
+  }
+
+  .export {
+    margin-top: 0;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  transition: opacity 120ms ease;
+
+  &[data-stale] {
+    opacity: 0.6;
+  }
+}
+
+.table {
+  font-size: var(--mantine-font-size-sm);
+}
+
+.pagination {
+  align-self: center;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.configuration {
+  color: var(--mantine-color-dimmed);
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.totalRow td {
+  font-weight: 600;
+}
+
+.subtotal td {
+  border-top: 1px solid var(--ep-border);
+  font-weight: 800;
+}
+
+.grandTotal td {
+  border-top: 2px solid var(--ep-charcoal);
+  font-weight: 800;
+}

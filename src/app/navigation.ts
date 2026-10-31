@@ -24,8 +24,8 @@ export const APP_SECTIONS: AppSection[] = [
   { id: "orders", path: "/orders", labelKey: "nav.orders", icon: IconReceipt },
   // `/menu` is the public menu page, so menu management lives at `/catalog` (ADMIN only, D80).
   { id: "menu", path: "/catalog", labelKey: "nav.menu", icon: IconToolsKitchen2, adminOnly: true },
-  { id: "reports", path: "/reports", labelKey: "nav.reports", icon: IconChartBar, adminOnly: true, plannedPhase: 5 },
-  { id: "finance", path: "/finance", labelKey: "nav.finance", icon: IconReportMoney, adminOnly: true, plannedPhase: 5 },
+  { id: "reports", path: "/reports", labelKey: "nav.reports", icon: IconChartBar, adminOnly: true },
+  { id: "finance", path: "/finance", labelKey: "nav.finance", icon: IconReportMoney, adminOnly: true },
 ];
 
 export const sectionsForRole = (role: string | undefined) =>
