@@ -38,8 +38,36 @@
   color: var(--ep-charcoal);
 }
 
+/*
+ * The workspace scrolls on its own, below the header and beside the navigation; the window never scrolls.
+ * (AppShell main: the header offset becomes a margin, so the scrollbar starts under the header.)
+ * Every screen has the gaps of the POS screen (Pos.module.css toolbar and grid): 20px at the sides, 16px under
+ * the header, 12px on phones. The POS screen itself is edge to edge; its columns carry those gaps.
+ */
 .main {
+  --page-gap-x: 20px;
+  --page-gap-top: 16px;
+  --page-gap-bottom: 24px;
   background-color: var(--ep-canvas);
+  box-sizing: border-box;
+  margin-top: var(--app-shell-header-offset, 0rem);
+  height: calc(100dvh - var(--app-shell-header-offset, 0rem));
+  min-height: 0;
+  padding: var(--page-gap-top) var(--page-gap-x) var(--page-gap-bottom);
+  padding-inline-start: calc(var(--app-shell-navbar-offset, 0rem) + var(--page-gap-x));
+  overflow-y: auto;
+
+  @media (max-width: $mantine-breakpoint-sm) {
+    --page-gap-x: 12px;
+    --page-gap-top: 12px;
+    --page-gap-bottom: 12px;
+  }
+
+  &[data-full-bleed] {
+    --page-gap-x: 0px;
+    --page-gap-top: 0px;
+    --page-gap-bottom: 0px;
+  }
 }
 
 /* Charcoal sidebar (dark navigation, yellow active item). */
@@ -62,9 +90,23 @@
   max-width: 200px;
 }
 
+/* The navigation scrolls on its own when it is taller than the column (short screens). */
 .nav {
   flex: 1;
+  min-height: 0;
   padding: 12px;
+}
+
+.navScrollbar {
+  @mixin hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.navThumb,
+.navScrollbar:hover > .navThumb,
+.navScrollbar:active > .navThumb {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .link {

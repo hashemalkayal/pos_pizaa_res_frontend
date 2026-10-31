@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { AppShell, Badge, Box, Burger, Group, NavLink, ScrollArea, Text, Title } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -23,14 +24,18 @@ export const AppLayout = () => {
   const [opened, { toggle, close }] = useDisclosure(false);
   const sections = sectionsForRole(session?.user.role);
   const current = sectionForPath(pathname);
-  // The cashier screen fills the workspace edge to edge; its columns scroll on their own.
+  // The cashier screen fills the workspace edge to edge; its columns scroll and carry the page gaps on their own.
   const fullBleed = pathname === "/pos";
+  // The workspace is the scroll container (not the window): each section opens at its top.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [pathname]);
 
   return (
     <AppShell
       header={{ height: 64 }}
       navbar={{ width: NAVBAR_WIDTH, breakpoint: "sm", collapsed: { mobile: !opened } }}
-      padding={fullBleed ? 0 : { base: "md", md: "xl" }}
       classNames={{ header: classes.header, navbar: classes.navbar, main: classes.main }}
     >
       <AppShell.Header>
@@ -58,7 +63,14 @@ export const AppLayout = () => {
         <Box hiddenFrom="sm" className={classes.navBrand}>
           <BrandLogo className={classes.navLogo} />
         </Box>
-        <ScrollArea component="nav" aria-label={t("nav.label")} className={classes.nav} type="never">
+        <ScrollArea
+          component="nav"
+          aria-label={t("nav.label")}
+          className={classes.nav}
+          type="auto"
+          scrollbarSize={8}
+          classNames={{ scrollbar: classes.navScrollbar, thumb: classes.navThumb }}
+        >
           {sections.map((section) => {
             const active = current?.id === section.id;
             return (
@@ -88,7 +100,7 @@ export const AppLayout = () => {
         </Text>
       </AppShell.Navbar>
 
-      <AppShell.Main>
+      <AppShell.Main ref={mainRef} mod={{ "full-bleed": fullBleed }}>
         <Outlet />
       </AppShell.Main>
     </AppShell>
