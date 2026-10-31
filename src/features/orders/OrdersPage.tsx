@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Button, CloseButton, Pagination, SegmentedControl, Select, Stack, Text, TextInput } from "@mantine/core";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button, CloseButton, Pagination, SegmentedControl, Select, Text, TextInput, useMatches } from "@mantine/core";
 import { DatePickerInput, DatesProvider } from "@mantine/dates";
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconCalendar, IconReceipt, IconSearch } from "@tabler/icons-react";
@@ -9,16 +9,17 @@ import type { OrderStatus, ServiceType } from "@/api/v2/orders";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
-import { datesLocale } from "./datesLocale";
+import { datesSettings } from "./datesLocale";
 import { OrderCard } from "./OrderCard";
 import { OrderDrawer } from "./OrderDrawer";
 import { NO_FILTERS, useOrdersPage, type OrderFilters } from "./queries";
 import classes from "./Orders.module.css";
 
 /**
- * The Orders tab: every order, newest first, as cards (10 per page, server-side). Search by order number only;
+ * The Orders tab: every order, newest first, as cards (20 per page, server-side). Search by order number only;
  * filters by status, business date and order type. A card opens the order's drawer at /orders/:orderId, on the
- * same page, so the search, filters and page are kept.
+ * same page, so the search, filters and page are kept. The page fills the height under the header: the cards
+ * scroll between the filters and the pagination, which stays at the bottom.
  */
 const OrdersPage = () => {
   const { t, i18n } = useTranslation();
@@ -55,11 +56,20 @@ const OrdersPage = () => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  // Each page starts at its first card.
+  const resultsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (resultsRef.current) resultsRef.current.scrollTop = 0;
+  }, [page]);
+
+  // Phones: smaller and fewer page buttons, so the pagination fits on one line.
+  const compactPagination = useMatches({ base: true, sm: false });
+
   const openOrder = useCallback((id: number) => navigate(`/orders/${id}`), [navigate]);
 
   return (
-    <DatesProvider settings={{ locale: datesLocale(i18n.language) }}>
-      <Stack gap="md">
+    <DatesProvider settings={datesSettings(i18n.language)}>
+      <div className={classes.page}>
         <div className={classes.toolbar}>
           <TextInput
             className={classes.search}
@@ -113,42 +123,47 @@ const OrdersPage = () => {
           ) : null}
         </div>
 
-        {query.isPending ? (
-          <LoadingState label={t("orders.loading")} />
-        ) : query.isError ? (
-          <ErrorState error={query.error} onRetry={() => void query.refetch()} />
-        ) : !data?.items.length ? (
-          <EmptyState icon={<IconReceipt size={28} stroke={1.6} />} title={filtered ? t("orders.emptyFiltered") : t("orders.empty")}>
-            {filtered ? (
-              <Button size="action" variant="default" onClick={clearAll}>
-                {t("orders.clearFilters")}
-              </Button>
-            ) : null}
-          </EmptyState>
-        ) : (
-          <>
-            <Text size="sm" c="dimmed" aria-live="polite">
-              {t("orders.count", { count: data.pagination.total })}
-            </Text>
+        {data?.items.length ? (
+          <Text size="sm" c="dimmed" aria-live="polite">
+            {t("orders.count", { count: data.pagination.total })}
+          </Text>
+        ) : null}
+
+        <div ref={resultsRef} className={classes.results}>
+          {query.isPending ? (
+            <LoadingState label={t("orders.loading")} />
+          ) : query.isError ? (
+            <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+          ) : !data?.items.length ? (
+            <EmptyState icon={<IconReceipt size={28} stroke={1.6} />} title={filtered ? t("orders.emptyFiltered") : t("orders.empty")}>
+              {filtered ? (
+                <Button size="action" variant="default" onClick={clearAll}>
+                  {t("orders.clearFilters")}
+                </Button>
+              ) : null}
+            </EmptyState>
+          ) : (
             <div className={classes.grid} data-stale={query.isPlaceholderData || undefined}>
               {data.items.map((order) => (
                 <OrderCard key={order.id} order={order} onOpen={openOrder} />
               ))}
             </div>
-            {totalPages > 1 ? (
-              <Pagination
-                className={classes.pagination}
-                value={Math.min(page, totalPages)}
-                onChange={setPage}
-                total={totalPages}
-                size="lg"
-                radius="md"
-                getControlProps={(control) => ({ "aria-label": t(`orders.pagination.${control}`) })}
-              />
-            ) : null}
-          </>
-        )}
-      </Stack>
+          )}
+        </div>
+
+        {data?.items.length ? (
+          <Pagination
+            className={classes.pagination}
+            value={Math.min(page, totalPages)}
+            onChange={setPage}
+            total={totalPages}
+            size={compactPagination ? "md" : "lg"}
+            siblings={compactPagination ? 0 : 1}
+            radius="md"
+            getControlProps={(control) => ({ "aria-label": t(`orders.pagination.${control}`) })}
+          />
+        ) : null}
+      </div>
 
       <OrderDrawer orderId={openId} onClose={() => navigate("/orders")} />
     </DatesProvider>

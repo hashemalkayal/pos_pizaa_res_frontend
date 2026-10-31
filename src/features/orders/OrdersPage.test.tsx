@@ -41,15 +41,17 @@ const recordListRequests = () => {
 };
 
 describe("Orders — list", () => {
-  it("shows every order newest first as cards (10 per page) with its key facts; pagination moves through the rest", async () => {
-    for (let index = 0; index < 11; index += 1) createOrder();
+  it("shows every order newest first as cards (20 per page) with its key facts; pagination moves through the rest", async () => {
+    for (let index = 0; index < 21; index += 1) createOrder();
     const delivery = createOrder({ customerId: 1, paymentMethod: "VISA", delivery: { location: "Building 5", price: "1.500" } });
     store.voidOrder(1, { version: 0 });
+    const requests = recordListRequests();
     const user = await openOrders();
 
-    await waitFor(() => expect(cards()).toHaveLength(10));
-    expect(screen.getByText("12 orders")).toBeInTheDocument();
-    expect(cardNumbers()).toEqual(["12", "11", "10", "9", "8", "7", "6", "5", "4", "3"]);
+    await waitFor(() => expect(cards()).toHaveLength(20));
+    expect(screen.getByText("22 orders")).toBeInTheDocument();
+    expect(cardNumbers()).toEqual(Array.from({ length: 20 }, (_, index) => String(22 - index)));
+    expect(requests.at(-1)!.searchParams.get("pageSize")).toBe("20");
 
     const newest = card(delivery.orderNumber);
     expect(newest).toHaveTextContent("Mock Customer");
@@ -68,10 +70,10 @@ describe("Orders — list", () => {
   });
 
   it("searches by order number only, and every search starts at page 1", async () => {
-    for (let index = 0; index < 12; index += 1) createOrder({ customerId: 1 });
+    for (let index = 0; index < 22; index += 1) createOrder({ customerId: 1 });
     const requests = recordListRequests();
     const user = await openOrders();
-    await waitFor(() => expect(cards()).toHaveLength(10));
+    await waitFor(() => expect(cards()).toHaveLength(20));
     await user.click(screen.getByRole("button", { name: "Next page" }));
     await waitFor(() => expect(cardNumbers()).toEqual(["2", "1"]));
 
@@ -87,16 +89,16 @@ describe("Orders — list", () => {
     await user.clear(search);
     await user.type(search, "Mock");
     expect(search).toHaveValue("");
-    await waitFor(() => expect(cards()).toHaveLength(10));
+    await waitFor(() => expect(cards()).toHaveLength(20));
   });
 
   it("filters by status, order type and date; each change starts at page 1", async () => {
-    for (let index = 0; index < 11; index += 1) createOrder();
+    for (let index = 0; index < 21; index += 1) createOrder();
     createOrder({ delivery: { location: "Building 5", price: "1" } });
     store.voidOrder(2, { version: 0 });
     const requests = recordListRequests();
     const user = await openOrders();
-    await waitFor(() => expect(cards()).toHaveLength(10));
+    await waitFor(() => expect(cards()).toHaveLength(20));
     await user.click(screen.getByRole("button", { name: "Next page" }));
     await waitFor(() => expect(cardNumbers()).toEqual(["2", "1"]));
 
@@ -108,16 +110,28 @@ describe("Orders — list", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     await user.click(screen.getByRole("radio", { name: "Delivery" }));
-    await waitFor(() => expect(cardNumbers()).toEqual(["12"]));
+    await waitFor(() => expect(cardNumbers()).toEqual(["22"]));
     expect(requests.at(-1)!.searchParams.get("service")).toBe("DELIVERY");
     await user.click(screen.getByRole("radio", { name: "Dine-in" }));
-    await waitFor(() => expect(cards()).toHaveLength(10));
+    await waitFor(() => expect(cards()).toHaveLength(20));
     expect(requests.at(-1)!.searchParams.get("service")).toBe("DINE_IN");
 
     await user.click(screen.getByRole("button", { name: "Date" }));
+    // Jordan's calendar week: Sunday first; Friday and Saturday are the weekend.
+    expect((await screen.findAllByRole("columnheader")).map((header) => header.textContent).slice(0, 7)).toEqual(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]);
     await user.click(await screen.findByRole("button", { name: /^15\b/ }));
     await waitFor(() => expect(requests.at(-1)!.searchParams.get("businessDate")).toMatch(/^\d{4}-\d{2}-15$/));
     expect(requests.at(-1)!.searchParams.get("page")).toBe("1");
+  });
+
+  it("a single, partly filled page still has its pagination, below the cards", async () => {
+    for (let index = 0; index < 3; index += 1) createOrder();
+    await openOrders();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const next = screen.getByRole("button", { name: "Next page" });
+    expect(next).toBeDisabled();
+    const results = cards()[0].closest("[class*=results]");
+    expect(results?.nextElementSibling).toContainElement(next);
   });
 
   it("empty and error states", async () => {
@@ -315,8 +329,9 @@ describe("Orders — drawer", () => {
     renderApp("/orders/1");
     const panel = await screen.findByRole("dialog", { name: /^الطلب رقم 1/ }, { timeout: 5000 });
     expect(document.documentElement.dir).toBe("rtl");
-    expect(panel).toHaveTextContent("ملغي");
-    expect(panel).toHaveTextContent("هذا الطلب ملغي. لا يمكن تعديله أو إعادة طباعته.");
+    expect(panel).toHaveTextContent("ملغى");
+    expect(panel).toHaveTextContent("هذا الطلب ملغى. لا يمكن تعديله أو إعادة طباعته.");
+    expect(panel).toHaveTextContent("طريقة الدفع");
     expect(panel).toHaveTextContent("4.000");
     expect(screen.getByRole("textbox", { name: "البحث برقم الطلب" })).toBeInTheDocument();
   });

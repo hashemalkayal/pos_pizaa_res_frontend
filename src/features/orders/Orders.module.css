@@ -1,5 +1,28 @@
 /* Orders tab: search and filters, a grid of order cards, pagination, and the order drawer. */
 
+/*
+ * The page fills the height under the header (AppShell main: header offset + padding above and below). The
+ * cards scroll in the middle; the filters stay on top and the pagination at the bottom. On very short screens
+ * the page keeps a minimum height and scrolls as a whole instead of squeezing the cards.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+  height: calc(100dvh - var(--app-shell-header-offset, 0rem) - 2 * var(--app-shell-padding, 0rem));
+  min-height: 480px;
+}
+
+.results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the cards' focus ring and hover shadow, without shifting them. */
+  margin: -4px;
+  padding: 4px;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -125,6 +148,7 @@
 }
 
 .pagination {
+  flex: none;
   align-self: center;
 }
 
