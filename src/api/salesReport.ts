@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 import type { Money } from "./catalog";
 
 /** A product configuration or an add-on, with what it sold in the months. */

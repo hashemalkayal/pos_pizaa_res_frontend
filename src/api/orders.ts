@@ -1,8 +1,8 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 import type { CatalogVariant, Money } from "./catalog";
 
 /**
- * POS V2 orders (backend: src/schemas/v2/order.schema.ts, src/services/order/order-serializer.ts).
+ * POS orders (backend: src/schemas/order.schema.ts, src/services/order/order-serializer.ts).
  * Prices are never sent: the server prices every line from the catalog (422 FIELD_NOT_ALLOWED otherwise).
  */
 export type PaymentMethod = "CASH" | "VISA" | "CLIQ";

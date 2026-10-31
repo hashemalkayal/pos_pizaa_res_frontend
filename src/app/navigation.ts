@@ -14,11 +14,9 @@ export interface AppSection {
   icon: Icon;
   /** Shown to ADMIN only — a navigation rule, not security (D30 deferred). */
   adminOnly?: boolean;
-  /** Rebuild phase that delivers this section; removed once the V2 screen exists. */
-  plannedPhase?: number;
 }
 
-/** Only sections backed by a V2 API. No Settings/Users/Printers screens (no backend support). */
+/** Only sections backed by the API. No Settings/Users/Printers screens (no backend support). */
 export const APP_SECTIONS: AppSection[] = [
   { id: "pos", path: "/pos", labelKey: "nav.pos", icon: IconCashRegister },
   { id: "orders", path: "/orders", labelKey: "nav.orders", icon: IconReceipt },

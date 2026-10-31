@@ -34,17 +34,6 @@ describe("CurrencyText", () => {
 });
 
 describe("ErrorState", () => {
-  it("CUTOVER_PENDING: explains the environment, offers no retry", () => {
-    renderWithProviders(
-      <ErrorState
-        error={httpError(503, { message: "x", statusCode: 503, code: "CUTOVER_PENDING", error: { code: "CUTOVER_PENDING", details: null } })}
-        onRetry={() => undefined}
-      />
-    );
-    expect(screen.getByText("POS V2 is not active yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
-  });
-
   it("server error: message, support reference and retry", async () => {
     const onRetry = vi.fn();
     renderWithProviders(

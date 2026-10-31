@@ -3,7 +3,7 @@ import { Alert, Button, Divider, Group, Loader, Modal, Radio, Stack, Text } from
 import { IconAlertTriangle, IconBuildingBank, IconCash, IconCreditCard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { ApiError } from "@/api/errors";
-import type { OrderListItem, PaymentMethod } from "@/api/v2/orders";
+import type { OrderListItem, PaymentMethod } from "@/api/orders";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { formatMoney, fromFils, toFils } from "@/lib/money";
 import type { OrderDraft } from "../model/orderDraft";

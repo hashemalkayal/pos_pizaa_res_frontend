@@ -9,8 +9,7 @@
     "orders": "Orders",
     "menu": "Menu",
     "reports": "Sales Reports",
-    "finance": "Finance",
-    "soon": "Soon"
+    "finance": "Finance"
   },
   "shell": {
     "toggleNavigation": "Toggle navigation",
@@ -63,20 +62,10 @@
     "conflict": "This record was changed elsewhere. Refresh and try again.",
     "validation": "Please check the highlighted fields.",
     "rateLimited": "Too many requests. Please wait a moment and try again.",
-    "legacyRetired": "This feature was retired with the POS V2 switch-over. Reload the POS.",
     "unknown": "Something went wrong. Please try again.",
-    "cutoverPending": {
-      "title": "POS V2 is not active yet",
-      "description": "The server is still running the previous POS. This screen becomes available after the approved switch-over."
-    },
     "title": "Something went wrong",
     "retry": "Try again",
     "reference": "Reference: {{id}}"
-  },
-  "planned": {
-    "title": "{{section}} is being rebuilt",
-    "description": "This section is part of the POS V2 rebuild and arrives in phase {{phase}}. The current POS keeps serving it until the switch-over.",
-    "badge": "Phase {{phase}}"
   },
   "adminOnly": {
     "title": "Not available for your role",
@@ -180,7 +169,7 @@
       "save": "Save customer",
       "cancel": "Cancel",
       "nameRequired": "Enter the customer's name.",
-      "phoneInvalid": "Enter a phone number (digits, +, -, spaces).",
+      "phoneInvalid": "Enter a Jordanian mobile number, for example 079 123 4567 or +962 79 123 4567.",
       "exists": "{{name}} already exists with this phone number. That customer is selected.",
       "created": "Customer {{name}} added.",
       "deleted": "Deleted customer"

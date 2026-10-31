@@ -5,8 +5,8 @@ import { IconAlertTriangle, IconBan, IconPrinter, IconReceiptOff } from "@tabler
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { errorMessageKey, toApiError, type ApiError } from "@/api/errors";
-import type { Customer } from "@/api/v2/customers";
-import { reprintOrder, updateOrderCustomer, voidOrder, type Order } from "@/api/v2/orders";
+import type { Customer } from "@/api/customers";
+import { reprintOrder, updateOrderCustomer, voidOrder, type Order } from "@/api/orders";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";

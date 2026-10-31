@@ -5,7 +5,7 @@ import { DatePickerInput, DatesProvider } from "@mantine/dates";
 import { IconAlertTriangle, IconCalendar } from "@tabler/icons-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { getFinanceOverview, type FinanceOverview } from "@/api/v2/finance";
+import { getFinanceOverview, type FinanceOverview } from "@/api/finance";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { CurrencyText } from "@/components/money/CurrencyText";

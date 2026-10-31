@@ -1,4 +1,4 @@
-import { http as mswHttp, HttpResponse } from "msw";
+import { http as mswHttp } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { server } from "@/test/server";
 import { signInAs } from "@/test/renderApp";
@@ -6,10 +6,10 @@ import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
 import { appError } from "@/mocks/handlers";
 import { ApiError } from "./errors";
 import { setUnauthorizedHandler } from "./http";
-import { login } from "./v2/auth";
-import { getCatalog } from "./v2/catalog";
+import { login } from "./auth";
+import { getCatalog } from "./catalog";
 
-describe("typed V2 client", () => {
+describe("typed API client", () => {
   it("sends the Bearer token and unwraps { response } (GET /api/catalog)", async () => {
     const { token } = signInAs("CASHER");
     const seen = vi.fn();
@@ -38,17 +38,9 @@ describe("typed V2 client", () => {
     unregister();
   });
 
-  it("503 CUTOVER_PENDING surfaces as its own error kind (no fallback to legacy APIs)", async () => {
+  it("a 503 is a server error", async () => {
     signInAs("ADMIN");
-    const legacyCall = vi.fn();
-    server.use(
-      mswHttp.get("*/api/catalog", () => appError(503, "CUTOVER_PENDING", "This POS V2 endpoint is available after the approved database cutover.")),
-      mswHttp.all("*/api/item*", () => {
-        legacyCall();
-        return HttpResponse.json({});
-      })
-    );
-    await expect(getCatalog()).rejects.toMatchObject({ kind: "cutoverPending", status: 503 });
-    expect(legacyCall).not.toHaveBeenCalled();
+    server.use(mswHttp.get("*/api/catalog", () => appError(503, "SERVICE_UNAVAILABLE", "Try again later.")));
+    await expect(getCatalog()).rejects.toMatchObject({ kind: "server", status: 503 });
   });
 });

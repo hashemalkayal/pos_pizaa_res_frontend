@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 
 /** Money as the backend sends it: a decimal string with 3 decimals, e.g. "4.500" (JOD). */
 export type Money = string;

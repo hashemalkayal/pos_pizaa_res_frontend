@@ -8,6 +8,7 @@ import {
   isSessionExpired,
   readStoredSession,
   sessionFromToken,
+  shownName,
   storeSession,
 } from "./session";
 
@@ -17,8 +18,20 @@ describe("session from the backend token", () => {
   it("reads userId, email, role and the 15-day expiry from the claims", () => {
     const { token, exp } = buildMockToken(claims, { issuedAt: 1_800_000_000 });
     const session = sessionFromToken(token);
-    expect(session).toEqual({ accessToken: token, expiresAt: new Date(exp * 1000).toISOString(), user: { id: 2, email: "cashier@mock.local", role: "CASHER" } });
+    expect(session).toEqual({ accessToken: token, expiresAt: new Date(exp * 1000).toISOString(), user: { id: 2, email: "cashier@mock.local", role: "CASHER", displayName: null } });
     expect(exp - 1_800_000_000).toBe(15 * 24 * 60 * 60);
+  });
+
+  it("reads the optional display name; the shown name falls back to the email", () => {
+    const named = sessionFromToken(buildMockToken({ ...claims, displayName: " Restaurant Cashier " }).token)!;
+    expect(named.user.displayName).toBe("Restaurant Cashier");
+    expect(shownName(named.user)).toBe("Restaurant Cashier");
+    const unnamed = sessionFromToken(buildMockToken(claims).token)!;
+    expect(shownName(unnamed.user)).toBe("cashier@mock.local");
+  });
+
+  it("stores the session under the unversioned key", () => {
+    expect(SESSION_STORAGE_KEY).toBe("ep.session");
   });
 
   it("rejects malformed tokens and tokens without the required claims", () => {
@@ -34,8 +47,8 @@ describe("session from the backend token", () => {
   });
 
   it("ADMIN check is by role claim only (navigation rule)", () => {
-    expect(isAdmin({ id: 1, email: "a", role: "ADMIN" })).toBe(true);
-    expect(isAdmin({ id: 2, email: "c", role: "CASHER" })).toBe(false);
+    expect(isAdmin({ id: 1, email: "a", role: "ADMIN", displayName: null })).toBe(true);
+    expect(isAdmin({ id: 2, email: "c", role: "CASHER", displayName: "Cashier" })).toBe(false);
     expect(isAdmin(null)).toBe(false);
   });
 });

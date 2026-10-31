@@ -5,7 +5,7 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { IconCalendar, IconReceipt, IconSearch } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
-import type { OrderStatus, ServiceType } from "@/api/v2/orders";
+import type { OrderStatus, ServiceType } from "@/api/orders";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";

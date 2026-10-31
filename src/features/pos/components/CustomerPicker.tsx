@@ -6,11 +6,13 @@ import { IconPhone, IconSearch, IconUser, IconUserPlus, IconX } from "@tabler/ic
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { errorMessageKey, toApiError } from "@/api/errors";
-import { createCustomer, getCustomer, type Customer } from "@/api/v2/customers";
-import type { OrderCustomer } from "@/api/v2/orders";
+import { createCustomer, getCustomer, type Customer } from "@/api/customers";
+import type { OrderCustomer } from "@/api/orders";
+import { canonicalJordanMobile } from "@/lib/phone";
 import { CUSTOMER_SEARCH_MIN_LENGTH, useCustomerSearch } from "../hooks/queries";
 
-const PHONE_PATTERN = /^[0-9+()\- ]{3,32}$/;
+/** A search typed with digits is taken as the phone number when a new customer is started from it. */
+const LOOKS_LIKE_PHONE = /^[0-9+()\- ٠-٩]{3,32}$/;
 
 interface NewCustomerModalProps {
   opened: boolean;
@@ -20,24 +22,25 @@ interface NewCustomerModalProps {
 }
 
 /**
- * POST /api/customers: name and phone are both required. The same name and phone as an existing customer selects
- * that customer instead (409 CUSTOMER_ALREADY_EXISTS); the same phone with another name is a new customer.
+ * POST /api/customers: name and a Jordanian mobile number are both required. The phone number identifies the
+ * customer: a number that already belongs to a customer selects that customer instead (409 CUSTOMER_ALREADY_EXISTS),
+ * whatever name was typed.
  */
 const NewCustomerModal = ({ opened, initialQuery, onClose, onSelect }: NewCustomerModalProps) => {
   const { t } = useTranslation();
-  const looksLikePhone = PHONE_PATTERN.test(initialQuery.trim());
+  const looksLikePhone = LOOKS_LIKE_PHONE.test(initialQuery.trim());
   const form = useForm({
     mode: "controlled",
     initialValues: { name: looksLikePhone ? "" : initialQuery.trim(), phone: looksLikePhone ? initialQuery.trim() : "" },
     validate: {
       name: (value) => (value.trim() ? null : "pos.customer.nameRequired"),
-      phone: (value) => (PHONE_PATTERN.test(value.trim()) ? null : "pos.customer.phoneInvalid"),
+      phone: (value) => (canonicalJordanMobile(value) ? null : "pos.customer.phoneInvalid"),
     },
   });
   const mutation = useMutation({
     mutationFn: async (values: { name: string; phone: string }) => {
       try {
-        return { customer: await createCustomer({ name: values.name.trim(), phone: values.phone.trim() }), existed: false };
+        return { customer: await createCustomer({ name: values.name.trim(), phone: canonicalJordanMobile(values.phone) ?? values.phone.trim() }), existed: false };
       } catch (error) {
         const apiError = toApiError(error);
         const existingId = (apiError.details as { existingCustomerId?: number } | null)?.existingCustomerId;

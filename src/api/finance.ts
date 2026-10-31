@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 import type { Money } from "./catalog";
 
 /** An order count and its sales (Σ the orders' charged totals). */

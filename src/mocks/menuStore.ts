@@ -1,5 +1,5 @@
-import type { CatalogCategory, CatalogOptionGroup, CatalogUnit, CatalogVariant } from "@/api/v2/catalog";
-import type { MenuAddOn, MenuCategory, MenuProduct, MenuProductDetail } from "@/api/v2/menu";
+import type { CatalogCategory, CatalogOptionGroup, CatalogUnit, CatalogVariant } from "@/api/catalog";
+import type { MenuAddOn, MenuCategory, MenuProduct, MenuProductDetail } from "@/api/menu";
 import { MOCK_CATALOG } from "./fixtures/catalog";
 import { MockError } from "./mockError";
 

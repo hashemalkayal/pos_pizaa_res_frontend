@@ -1,4 +1,4 @@
-import type { CatalogProduct } from "@/api/v2/catalog";
+import type { CatalogProduct } from "@/api/catalog";
 import { fromFils, toFils } from "@/lib/money";
 import type { LineConfig } from "./cart";
 import { sellableVariants, type CatalogIndex } from "./catalogView";

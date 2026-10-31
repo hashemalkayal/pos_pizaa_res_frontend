@@ -9,7 +9,7 @@ const responseError = (status: number, data: unknown, headers: Record<string, st
 };
 
 describe("toApiError — backend error bodies", () => {
-  it("V2 error body: code, details and field errors", () => {
+  it("API error body: code, details and field errors", () => {
     const error = toApiError(
       responseError(422, {
         message: "The request is invalid.",
@@ -48,16 +48,13 @@ describe("toApiError — backend error bodies", () => {
     expect(toApiError(responseError(429, body)).retryAfterSeconds).toBe(120);
   });
 
-  it("503 CUTOVER_PENDING is its own kind; other 503s are server errors", () => {
-    const cutover = toApiError(responseError(503, { message: "x", statusCode: 503, code: "CUTOVER_PENDING", error: { code: "CUTOVER_PENDING", details: null } }));
-    expect(cutover.kind).toBe("cutoverPending");
-    expect(errorMessageKey(cutover)).toBe("errors.cutoverPending.description");
+  it("503s are server errors", () => {
     expect(toApiError(responseError(503, {})).kind).toBe("server");
+    expect(errorMessageKey(toApiError(responseError(503, {})))).toBe("errors.server");
   });
 
-  it("409, 410, 403, 404 and 5xx with request id", () => {
+  it("409, 403, 404 and 5xx with request id", () => {
     expect(toApiError(responseError(409, { code: "ORDER_VERSION_CONFLICT" })).kind).toBe("conflict");
-    expect(toApiError(responseError(410, { code: "LEGACY_ENDPOINT_RETIRED" })).kind).toBe("legacyRetired");
     expect(toApiError(responseError(403, { message: "forbidden admin only" })).kind).toBe("forbidden");
     expect(toApiError(responseError(404, { code: "ORDER_NOT_FOUND" })).kind).toBe("notFound");
     const server = toApiError(

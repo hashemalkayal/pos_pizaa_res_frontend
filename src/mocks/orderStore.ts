@@ -1,5 +1,6 @@
-import type { Customer } from "@/api/v2/customers";
-import type { Order, OrderLine, OrderListItem, OrderQuote, OrderTotals, PaymentMethod } from "@/api/v2/orders";
+import type { Customer } from "@/api/customers";
+import type { Order, OrderLine, OrderListItem, OrderQuote, OrderTotals, PaymentMethod } from "@/api/orders";
+import { canonicalJordanMobile, phoneSearchFragment } from "@/lib/phone";
 import { MOCK_CUSTOMERS } from "./fixtures/customers";
 import * as menu from "./menuStore";
 import { MockError } from "./mockError";
@@ -7,7 +8,7 @@ import { MockError } from "./mockError";
 export { MockError };
 
 /**
- * DEVELOPMENT/TEST ONLY. In-memory orders and customers priced like the backend V2
+ * DEVELOPMENT/TEST ONLY. In-memory orders and customers priced like the backend
  * (src/services/order/order-pricing.ts): lineTotal = (unitPrice + addOnsUnitPrice) × quantity,
  * discountAmount = round half up(subtotal × percent / 100, 3), total = subtotal − discount + delivery.
  * Amounts are integer fils (thousandths of a dinar), so the arithmetic is exact.
@@ -17,7 +18,6 @@ type FieldError = { field: string; message: string };
 
 const MONEY = /^\d{1,7}(\.\d{1,3})?$/;
 const PERCENT = /^\d{1,3}(\.\d{1,2})?$/;
-const PHONE = /^[0-9+()\- ]+$/;
 const PAYMENT_METHODS: readonly PaymentMethod[] = ["CASH", "VISA", "CLIQ"];
 const MAX_LINES = 50;
 
@@ -136,8 +136,8 @@ const validateCustomerFields = (customer: Record<string, unknown>, check: Valida
   check.keys(customer, ["name", "phone"], path);
   check.string(customer.name, `${path ? `${path}.` : ""}name`, 191, { required: true, min: 1 });
   const phoneField = `${path ? `${path}.` : ""}phone`;
-  check.string(customer.phone, phoneField, 32, { required: true, min: 3 });
-  if (typeof customer.phone === "string" && !PHONE.test(customer.phone.trim())) check.fail(phoneField, "must be a phone number");
+  check.string(customer.phone, phoneField, 64, { required: true, min: 3 });
+  if (typeof customer.phone === "string" && !canonicalJordanMobile(customer.phone)) check.fail(phoneField, "must be a Jordanian mobile number (07X XXX XXXX)");
 };
 
 export const validateCreate = (body: unknown): CreateBody => {
@@ -161,7 +161,7 @@ export const validateCreate = (body: unknown): CreateBody => {
 
 type CustomerBody = { name: string; phone: string };
 
-/** POST /api/customers (D79 revised): name and phone are both required. */
+/** POST /api/customers: a name and a Jordanian mobile number are both required. */
 export const validateCustomer = (body: unknown): CustomerBody => {
   const check = new Validator();
   const value = isRecord(body) ? body : {};
@@ -177,8 +177,8 @@ export const validateCustomerUpdate = (body: unknown): Partial<CustomerBody> => 
   check.keys(value, ["name", "phone"]);
   if ("name" in value) check.string(value.name, "name", 191, { required: true, min: 1 });
   if ("phone" in value) {
-    check.string(value.phone, "phone", 32, { required: true, min: 3 });
-    if (typeof value.phone === "string" && !PHONE.test(value.phone.trim())) check.fail("phone", "must be a phone number");
+    check.string(value.phone, "phone", 64, { required: true, min: 3 });
+    if (typeof value.phone === "string" && !canonicalJordanMobile(value.phone)) check.fail("phone", "must be a Jordanian mobile number (07X XXX XXXX)");
   }
   check.throwIfInvalid();
   return value as Partial<CustomerBody>;
@@ -269,13 +269,12 @@ const syncOrders = (customer: MockCustomer) => {
   for (const order of orders) if (order.customer?.id === customer.id) order.customer = orderCustomer(customer);
 };
 
-/** Stored form (backend customer.service): the name with single spaces, the phone without spaces. */
-const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
-const normalizePhone = (phone: string) => phone.replace(/\s+/g, "");
+/** Stored form (backend customer.service): the name with single spaces, the phone as 07XXXXXXXX. */
+const normalizeName = (name: string) => name.replace(/\p{Cf}/gu, "").trim().replace(/\s+/g, " ");
+const normalizePhone = (phone: string) => canonicalJordanMobile(phone) ?? phone.replace(/\s+/g, "");
 const activeCustomer = (id: unknown) => customers.find((candidate) => candidate.id === id && !candidate.deletedAt) ?? null;
-/** D79 revised: a duplicate is the same name (any case) and phone among active customers. */
-const activeByNameAndPhone = (name: string, phone: string) =>
-  customers.find((candidate) => !candidate.deletedAt && candidate.name.toLowerCase() === normalizeName(name).toLowerCase() && candidate.phone === normalizePhone(phone)) ?? null;
+/** One active customer per phone number, whatever the name. */
+const activeByPhone = (phone: string) => customers.find((candidate) => !candidate.deletedAt && candidate.phone === normalizePhone(phone)) ?? null;
 
 const insertCustomer = (name: string, phone: string) => {
   const customer: MockCustomer = { id: nextCustomerId++, name: normalizeName(name), phone: normalizePhone(phone), createdAt: new Date().toISOString(), deletedAt: null };
@@ -285,9 +284,10 @@ const insertCustomer = (name: string, phone: string) => {
 
 export const searchCustomers = (q: string | null, pageSize: number, page = 1) => {
   const term = q?.trim().toLowerCase() ?? "";
+  const fragment = /\d/.test(term) ? phoneSearchFragment(term) : "";
   const matches = customers
     .filter((customer) => !customer.deletedAt)
-    .filter((customer) => !term || customer.name.toLowerCase().includes(term) || customer.phone.includes(term))
+    .filter((customer) => !term || customer.name.toLowerCase().includes(term) || (fragment !== "" && customer.phone.includes(fragment)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
   return paginate(matches.map(withOrderCount), pageSize, page);
 };
@@ -299,8 +299,8 @@ export const findCustomer = (id: number) => {
 };
 
 export const createCustomer = (input: CustomerBody) => {
-  const existing = activeByNameAndPhone(input.name, input.phone);
-  if (existing) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "A customer with this name and phone number already exists.", { existingCustomerId: existing.id });
+  const existing = activeByPhone(input.phone);
+  if (existing) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "A customer with this phone number already exists.", { existingCustomerId: existing.id });
   return publicCustomer(insertCustomer(input.name, input.phone));
 };
 
@@ -310,8 +310,8 @@ export const updateCustomer = (id: number, input: Partial<CustomerBody>) => {
   if (!customer) throw new MockError(404, "CUSTOMER_NOT_FOUND", "Customer not found.");
   const name = input.name === undefined ? customer.name : normalizeName(input.name);
   const phone = input.phone === undefined ? customer.phone : normalizePhone(input.phone);
-  const other = activeByNameAndPhone(name, phone);
-  if (other && other.id !== id) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "Another customer already has this name and phone number.", { existingCustomerId: other.id });
+  const other = activeByPhone(phone);
+  if (other && other.id !== id) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "Another customer already has this phone number.", { existingCustomerId: other.id });
   Object.assign(customer, { name, phone });
   syncOrders(customer);
   return publicCustomer(customer);
@@ -349,7 +349,7 @@ export const createOrder = (
     customer = activeCustomer(body.customerId);
     if (!customer) throw new MockError(422, "CUSTOMER_NOT_FOUND", `Customer ${body.customerId} does not exist.`);
   } else if (body.customer) {
-    customer = activeByNameAndPhone(body.customer.name, body.customer.phone) ?? insertCustomer(body.customer.name, body.customer.phone);
+    customer = activeByPhone(body.customer.phone) ?? insertCustomer(body.customer.name, body.customer.phone);
   }
 
   const now = at;

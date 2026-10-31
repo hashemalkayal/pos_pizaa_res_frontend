@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 
 /** POST /api/auth/login (backend: src/controller/auth/login.controller.ts). */
 export interface LoginRequest {

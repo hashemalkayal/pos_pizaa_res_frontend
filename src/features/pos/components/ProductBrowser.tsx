@@ -2,7 +2,7 @@ import { memo, useMemo, useState, type Ref } from "react";
 import { ActionIcon, Badge, Button, Kbd, ScrollArea, TextInput } from "@mantine/core";
 import { IconSearch, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { CatalogCategory, CatalogProduct } from "@/api/v2/catalog";
+import type { CatalogCategory, CatalogProduct } from "@/api/catalog";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { isSellable, matchesSearch, sellableVariants, startingPrice } from "../model/catalogView";

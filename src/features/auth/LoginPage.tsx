@@ -5,7 +5,7 @@ import { IconAlertCircle, IconInfoCircle, IconKey, IconMail } from "@tabler/icon
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { login } from "@/api/v2/auth";
+import { login } from "@/api/auth";
 import { toApiError, type ApiError } from "@/api/errors";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { LanguageSwitch } from "@/components/layout/LanguageSwitch";

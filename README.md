@@ -1,49 +1,47 @@
-# Engineers Pizza POS — frontend (V2)
+# Engineers Pizza POS — frontend
 
-The staff POS for Engineers Pizza: React 18, Vite, TypeScript, Mantine 8, TanStack Query, Axios, React Router, i18next (English / Arabic, RTL).
+The staff POS for Engineers Pizza: React 18, Vite, TypeScript, Mantine 8, TanStack Query, Axios, React Router, i18next
+(English / Arabic, RTL). It talks only to the POS API of the backend (`D:\Backend\pos`); it goes live together with the
+backend's production cutover (`docs/production-cutover.md` there).
 
-Branch `v2` is the V2 rebuild. It talks **only** to the backend V2 API, so it goes live together with the backend cutover. `main` keeps the current POS until then.
+**Package manager: yarn** (`yarn.lock` is the only lockfile; do not add a `pnpm-lock.yaml`).
 
 ## Scripts
 
 | Command | What it does |
 |---|---|
+| `yarn install --frozen-lockfile` | Installs exactly what `yarn.lock` pins |
 | `yarn dev:mock` | Dev server with every API call answered by MSW mocks (no backend needed). An orange **Mock data** badge is always shown. |
-| `yarn dev` | Dev server against the **local DEV backend V2** (`http://localhost:8080/api`, `.env.dev`). Mocks never run in this mode. |
+| `yarn dev` | Dev server against the **local DEV backend** (`http://localhost:8080/api`, `.env.dev`). Mocks never run in this mode. |
 | `yarn dev:staging` | Dev server against the backend in `.env.staging` |
 | `yarn build` | Type-check and production build (`--mode staging`); mocks are never included |
 | `yarn typecheck` · `yarn lint` · `yarn test` | Checks; tests run on Vitest + Testing Library + MSW |
-| `yarn test:live` | Live contract tests (`*.live.test.ts`): the typed V2 clients against the real local backend, and the MSW mocks compared with it. Needs `LIVE_EMAIL` and `LIVE_PASSWORD` (a local test user). Refuses non-local APIs. |
+| `yarn test:live` | Live contract tests (`*.live.test.ts`): the typed API clients against the real local backend, and the MSW mocks compared with it. Needs `LIVE_EMAIL` and `LIVE_PASSWORD` (a local test user). Refuses non-local APIs. |
 
 **Mock sign-in (development fixtures, not real accounts):** `admin@mock.local` / `mock-admin` and `cashier@mock.local` / `mock-cashier`.
 
 ## Real local backend
 
-The backend repository runs POS V2 locally on the MySQL database `pos` (`127.0.0.1:3306`) with a fake print agent; see `docs/dev-setup.md` there (`pnpm dev:db:reset`, `pnpm dev:print-agent`, `pnpm dev`). Then run `yarn dev` here and sign in with a DEV account: `admin@pos-v2.local` or `cashier@pos-v2.local`, password `P@ssw0rd` (local DEV only).
+The backend runs locally on the MySQL database `pos` (`127.0.0.1:3306`) with a fake print agent; see `docs/dev-setup.md`
+there (`pnpm dev:db:reset`, `pnpm dev:print-agent`, `pnpm dev`). Then run `yarn dev` here and sign in with a DEV account:
+`admin@pos-v2.local` or `cashier@pos-v2.local`, password `P@ssw0rd` (local DEV only).
 
-Mocks start only in mode `mock` with `VITE_API_MOCKING=enabled` (`src/main.tsx`, `src/api/config.ts`). No other mode can enable them.
-
-**Mocks vs the real API (checked by `yarn test:live`, 2026-10-30):**
-
-- **Identical:**
-  - the login success shape and token claims;
-  - the 401 and 422 login bodies;
-  - the `TOKEN_MISSING` and `INVALID_TOKEN` bodies;
-  - the full catalog key structure.
-- **Not mocked yet:** quote, orders, customers, reports. Add them with Phase 2+.
-- **Fixture coverage gaps** (the shapes match; the data does not cover these cases):
-  - single-variant products whose variant has no label (28 in the real menu: sandwiches, drinks, most pasta and salads);
-  - products without add-ons (30);
-  - no product images (none in the real menu either);
-  - only 3 of the 8 categories.
-- **Rate limit:** the mock limits failed sign-ins per email only; the backend also limits 20 per IP per 15 minutes.
+Mocks start only in mode `mock` with `VITE_API_MOCKING=enabled` (`src/main.tsx`, `src/api/config.ts`). No other mode can
+enable them.
 
 ## Rules the code follows
 
-- **The backend V2 contract is the only source of truth.** Every DTO in `src/api/v2` and every mock in `src/mocks` mirrors the backend's routes, serializers and error bodies. Legacy endpoints (`/api/item`, `/api/payment`, `/api/customer`) are never called.
+- **The backend contract is the only source of truth.** Every DTO in `src/api` and every mock in `src/mocks` mirrors the
+  backend's routes, serializers and error bodies. The previous POS's routes (`/api/item`, `/api/payment`,
+  `/api/customer`) no longer exist and are never called.
 - **Mocks are development-only:** started only by `yarn dev:mock`, and absent from production builds.
-- **Money:** backend strings, shown as JOD with exactly 3 decimals (`src/lib/money.ts`); never floating-point arithmetic. Totals come from the server (`/api/orders/quote`).
-- **Session:** 15-day JWT. Any 401 clears the session and returns to sign-in with the reason. Reports and Finance are hidden from non-admins as a navigation rule only; the backend does not enforce roles (D30).
+- **Money:** backend strings, shown as JOD with exactly 3 decimals (`src/lib/money.ts`); never floating-point arithmetic.
+  Totals come from the server (`/api/orders/quote`).
+- **Customers:** a name and a Jordanian mobile number; the number identifies the customer and is stored as `07XXXXXXXX`
+  (`src/lib/phone.ts` mirrors the backend rule). A known number selects the existing customer.
+- **Session:** 15-day JWT, stored under `ep.session`. The account menu shows the employee's display name (token claim),
+  or the email. Any 401 clears the session and returns to sign-in with the reason. Menu, Sales Reports and Finance are
+  shown to admins only as a navigation rule; the backend enforces its own permissions.
 - **Logo:** the official `src/assets/logo.png`, unmodified.
 
 ## Layout
@@ -51,27 +49,13 @@ Mocks start only in mode `mock` with `VITE_API_MOCKING=enabled` (`src/main.tsx`,
 ```
 src/
   app/          providers, routes, navigation, query client
-  api/          axios client, error model, typed V2 endpoints (src/api/v2)
-  features/     feature areas (auth: session, sign-in, route guards)
+  api/          axios client, error model, typed API endpoints
+  features/     POS, Orders, Menu, Sales Reports, Finance, auth
   components/   shared UI (layout, feedback states, money)
   i18n/         i18next setup and en/ar resources
+  lib/          money and phone helpers
   theme/        Mantine theme and brand tokens
   mocks/        MSW handlers and labelled fixtures (development/test only)
-  public-site/  public Landing (V2 brand) and Menu (kept from the previous app) pages, isolated from the POS
+  public-site/  public Landing (/landing) and Menu (/menu) pages, isolated from the POS
   test/         test setup and helpers
 ```
-
-## Rebuild status
-
-The previous screens remain on `main`. Each is rebuilt on V2 data in the phase shown:
-
-| Previous screen | V2 section | Phase |
-|---|---|---|
-| Login | Sign-in | 1 — done |
-| Create Order (cart, comments, discount, payment, customer, delivery, change calculator) | POS | 2 |
-| Orders History (today, delete → void, print) | Orders (edit, void, print, EXTERNAL orders) | 3 |
-| Customer dropdown | Customers | 3 |
-| Categories (item add/edit/delete) | Menu (categories, products, variants, add-ons) | 4 |
-| Home dashboard, Reports, Finance | Reports and Finance (V2 reports, CSV export) | 5 |
-| Landing (public) | Landing: V2 brand, English / Arabic | done |
-| Menu (public) | Kept as it is (redesign deferred) | — |

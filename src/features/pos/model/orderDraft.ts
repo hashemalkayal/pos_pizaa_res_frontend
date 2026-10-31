@@ -1,5 +1,5 @@
-import type { Customer } from "@/api/v2/customers";
-import type { CreateOrderRequest, DeliveryInput, OrderLineInput, PaymentMethod } from "@/api/v2/orders";
+import type { Customer } from "@/api/customers";
+import type { CreateOrderRequest, DeliveryInput, OrderLineInput, PaymentMethod } from "@/api/orders";
 import { isMoneyInput, isPercentInput } from "@/lib/money";
 import type { LineConfig } from "./cart";
 import { formatDeliveryTime, isTimePickerValue } from "./deliveryTime";

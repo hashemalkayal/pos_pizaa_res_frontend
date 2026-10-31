@@ -1,4 +1,4 @@
-import type { FinanceFigure, FinanceOverview } from "@/api/v2/finance";
+import type { FinanceFigure, FinanceOverview } from "@/api/finance";
 import { fromFils, toFils } from "@/lib/money";
 
 /** Like every report (backend resolveRange): at most 366 days. */

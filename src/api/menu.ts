@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 import type { CatalogOptionGroup, CatalogUnit, CatalogVariant, Money } from "./catalog";
 import type { Page } from "./orders";
 

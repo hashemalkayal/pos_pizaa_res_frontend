@@ -7,7 +7,7 @@ import { IconInfoCircle, IconSettings } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toApiError } from "@/api/errors";
-import { createProduct, deleteProduct, updateProduct, type MenuCategory, type MenuProductDetail, type ProductInput } from "@/api/v2/menu";
+import { createProduct, deleteProduct, updateProduct, type MenuCategory, type MenuProductDetail, type ProductInput } from "@/api/menu";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { useLocalized } from "@/features/pos/hooks/useLocalized";
 import { CategoryDrawer } from "./CategoriesLevel";

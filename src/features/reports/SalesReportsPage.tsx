@@ -6,7 +6,7 @@ import { IconAlertTriangle, IconCalendarMonth, IconFileSpreadsheet, IconReportAn
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { errorMessageKey, toApiError } from "@/api/errors";
-import { downloadSalesReport, getSalesReport, type SalesReport } from "@/api/v2/salesReport";
+import { downloadSalesReport, getSalesReport, type SalesReport } from "@/api/salesReport";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";

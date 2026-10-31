@@ -1,4 +1,4 @@
-import type { CatalogCategory, CatalogProduct, CatalogVariant } from "@/api/v2/catalog";
+import type { CatalogCategory, CatalogProduct, CatalogVariant } from "@/api/catalog";
 import { fromFils, toFils } from "@/lib/money";
 
 /** A product's add-on as the catalog offers it (one price per product). */

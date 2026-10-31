@@ -9,7 +9,7 @@ import { currentPathname, renderApp, signInAs } from "@/test/renderApp";
 import { server } from "@/test/server";
 
 /*
- * The Orders tab against the MSW backend (src/mocks: the V2 contract). Orders are created in the mock store with
+ * The Orders tab against the MSW backend (src/mocks: the backend contract). Orders are created in the mock store with
  * the same rules as the backend; mock customers: #1 "Mock Customer", #2 "عميل تجريبي".
  */
 

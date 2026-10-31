@@ -2,7 +2,6 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { APP_SECTIONS, type AppSection } from "./navigation";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { PlannedSectionPage } from "./pages/PlannedSectionPage";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoginPage } from "@/features/auth/LoginPage";
 import {
@@ -79,10 +78,8 @@ export const AppRoutes = () => (
               lazyPage(<MenuPage />)
             ) : section.id === "finance" ? (
               lazyPage(<FinancePage />)
-            ) : section.id === "reports" ? (
-              lazyPage(<SalesReportsPage />)
             ) : (
-              <PlannedSectionPage section={section} />
+              lazyPage(<SalesReportsPage />)
             );
           const param = ROUTE_PARAMS[section.id];
           const path = param ? `${section.path}/${param}` : section.path;

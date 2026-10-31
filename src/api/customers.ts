@@ -1,4 +1,4 @@
-import { http, unwrap, type ApiEnvelope } from "../http";
+import { http, unwrap, type ApiEnvelope } from "./http";
 import type { Page } from "./orders";
 
 /**
@@ -15,15 +15,29 @@ export interface Customer {
 }
 
 /** GET /api/customers?q= — name or phone contains `q`, newest first. */
-export const searchCustomers = async (q: string, signal?: AbortSignal): Promise<Page<Customer>> =>
-  unwrap(await http.get<ApiEnvelope<Page<Customer>>>("/customers", { params: { q, pageSize: 8 }, signal }));
+export const searchCustomers = async (
+  q: string,
+  signal?: AbortSignal,
+): Promise<Page<Customer>> =>
+  unwrap(
+    await http.get<ApiEnvelope<Page<Customer>>>("/customers", {
+      params: { q, pageSize: 8 },
+      signal,
+    }),
+  );
 
-export const getCustomer = async (id: number, signal?: AbortSignal): Promise<Customer> =>
+export const getCustomer = async (
+  id: number,
+  signal?: AbortSignal,
+): Promise<Customer> =>
   unwrap(await http.get<ApiEnvelope<Customer>>(`/customers/${id}`, { signal }));
 
 /**
  * POST /api/customers (201). The same name and phone as an existing customer → 409 CUSTOMER_ALREADY_EXISTS with
  * `details.existingCustomerId`.
  */
-export const createCustomer = async (body: { name: string; phone: string }): Promise<Customer> =>
+export const createCustomer = async (body: {
+  name: string;
+  phone: string;
+}): Promise<Customer> =>
   unwrap(await http.post<ApiEnvelope<Customer>>("/customers", body));

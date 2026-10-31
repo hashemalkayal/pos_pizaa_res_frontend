@@ -8,9 +8,7 @@ export type ApiErrorKind =
   | "forbidden"
   | "notFound"
   | "conflict"
-  | "legacyRetired"
   | "rateLimited"
-  | "cutoverPending"
   | "server"
   | "unknown";
 
@@ -21,7 +19,7 @@ export interface FieldError {
 
 /**
  * A failed backend call, normalised from the backend's error bodies:
- *   • V2 errors:            { message, statusCode, code, error: { code, details } }
+ *   • API errors:           { message, statusCode, code, error: { code, details } }
  *   • request validators:   { message: "Unprocessable Entity", errors: [{ field, message }] }  (login)
  *   • envelope errors:      { response: {}, message }                                            (login 401)
  *   • admin check:          { message }                                                          (403)
@@ -60,13 +58,11 @@ export class ApiError extends Error {
   }
 }
 
-const kindForStatus = (status: number, code: string | null): ApiErrorKind => {
-  if (status === 503 && code === "CUTOVER_PENDING") return "cutoverPending";
+const kindForStatus = (status: number): ApiErrorKind => {
   if (status === 401) return "unauthorized";
   if (status === 403) return "forbidden";
   if (status === 404) return "notFound";
   if (status === 409) return "conflict";
-  if (status === 410) return "legacyRetired";
   if (status === 429) return "rateLimited";
   if (status === 400 || status === 413 || status === 415 || status === 422) return "validation";
   if (status >= 500) return "server";
@@ -104,7 +100,7 @@ export const toApiError = (error: unknown): ApiError => {
   const fieldErrors = toFieldErrors(detailRecord.errors).concat(toFieldErrors(body.errors));
 
   return new ApiError({
-    kind: kindForStatus(status, code),
+    kind: kindForStatus(status),
     status,
     code,
     details,
@@ -118,8 +114,6 @@ export const toApiError = (error: unknown): ApiError => {
 /** i18n key of the user-facing message for an error kind (see locales: errors.*). */
 export const errorMessageKey = (error: ApiError): string => {
   switch (error.kind) {
-    case "cutoverPending":
-      return "errors.cutoverPending.description";
     case "unauthorized":
       return "auth.session.invalid";
     default:

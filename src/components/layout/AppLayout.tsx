@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AppShell, Badge, Box, Burger, Group, NavLink, ScrollArea, Text, Title } from "@mantine/core";
+import { AppShell, Box, Burger, Group, NavLink, ScrollArea, Text, Title } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -80,13 +80,6 @@ export const AppLayout = () => {
                 to={section.path}
                 label={t(section.labelKey)}
                 leftSection={<section.icon size={20} stroke={1.7} aria-hidden />}
-                rightSection={
-                  section.plannedPhase ? (
-                    <Badge size="xs" variant="outline" className={classes.soon}>
-                      {t("nav.soon")}
-                    </Badge>
-                  ) : null
-                }
                 active={active}
                 aria-current={active ? "page" : undefined}
                 onClick={close}

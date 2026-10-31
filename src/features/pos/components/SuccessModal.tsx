@@ -1,7 +1,7 @@
 import { Alert, Button, Group, Modal, Stack, Text, Title } from "@mantine/core";
 import { IconAlertTriangle, IconCircleCheck, IconPrinter } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { Order } from "@/api/v2/orders";
+import type { Order } from "@/api/orders";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { fromFils, toFils } from "@/lib/money";
 import classes from "../Pos.module.css";

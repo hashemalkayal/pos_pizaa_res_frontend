@@ -3,8 +3,8 @@ import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { rem } from "@mantine/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { CatalogCategory } from "@/api/v2/catalog";
-import type { CreateOrderRequest } from "@/api/v2/orders";
+import type { CatalogCategory } from "@/api/catalog";
+import type { CreateOrderRequest } from "@/api/orders";
 import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
 import { appError } from "@/mocks/handlers";
 import * as store from "@/mocks/orderStore";
@@ -13,7 +13,7 @@ import { server } from "@/test/server";
 import { ACTION_SIZES } from "@/theme/theme";
 
 /*
- * The cashier screen against the MSW backend (src/mocks: the V2 contract, priced like the backend).
+ * The cashier screen against the MSW backend (src/mocks: the backend contract, priced like the backend).
  * Mock catalog: Margherita 101 M·Regular 4.000 / 102 L·Regular 5.000 / 103 M·Whole Wheat 5.000, add-ons
  * 1–3 at 1.000; Penne Pesto; Roast Beef folded sandwich 3.000; Soft Drink and Water 0.500.
  */
@@ -557,7 +557,7 @@ describe("POS — order details", () => {
     const dialog = await screen.findByRole("dialog", { name: "New customer" });
     expect(within(dialog).getByRole("textbox", { name: /Name/ })).toHaveValue("Sara");
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
-    expect(within(dialog).getByText("Enter a phone number (digits, +, -, spaces).")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a Jordanian mobile number, for example 079 123 4567 or +962 79 123 4567.")).toBeInTheDocument();
     await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0771234567");
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "New customer" })).not.toBeInTheDocument());
@@ -569,16 +569,20 @@ describe("POS — order details", () => {
     expect(created[0]).toMatchObject({ customerId: 3, paymentMethod: "CLIQ" });
   });
 
-  it("a new customer needs a name and a phone; the same name and phone selects the existing customer, the same phone with another name is a new one", async () => {
+  it("a new customer needs a name and a Jordanian mobile; a known number (any form, any name) selects that customer", async () => {
     const user = await openPos();
     await user.click(within(cart()).getByRole("button", { name: "New customer" }));
     let dialog = await screen.findByRole("dialog", { name: "New customer" });
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
     expect(within(dialog).getByText("Enter the customer's name.")).toBeInTheDocument();
-    expect(within(dialog).getByText("Enter a phone number (digits, +, -, spaces).")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a Jordanian mobile number, for example 079 123 4567 or +962 79 123 4567.")).toBeInTheDocument();
 
-    await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), " mock customer ");
-    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0790000001");
+    await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), "Someone Else");
+    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0751234567");
+    await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
+    expect(within(dialog).getByText("Enter a Jordanian mobile number, for example 079 123 4567 or +962 79 123 4567.")).toBeInTheDocument();
+    await user.clear(within(dialog).getByRole("textbox", { name: /Phone/ }));
+    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "+962 79 000 0001");
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
     expect(await screen.findByText("Mock Customer already exists with this phone number. That customer is selected.")).toBeInTheDocument();
     expect(within(cart()).getByText("Mock Customer")).toBeInTheDocument();
@@ -588,10 +592,11 @@ describe("POS — order details", () => {
     await user.click(within(cart()).getByRole("button", { name: "New customer" }));
     dialog = await screen.findByRole("dialog", { name: "New customer" });
     await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), "Someone Else");
-    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0790000001");
+    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "079-123-4567");
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
     expect(await screen.findByText("Customer Someone Else added.")).toBeInTheDocument();
     expect(within(cart()).getByText("Someone Else")).toBeInTheDocument();
+    expect(store.searchCustomers(null, 50).items.find((c) => c.name === "Someone Else")?.phone).toBe("0791234567");
     expect(store.searchCustomers(null, 50).pagination.total).toBe(3);
   });
 

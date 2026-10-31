@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@mantine/hooks";
-import { getCatalog } from "@/api/v2/catalog";
-import { searchCustomers } from "@/api/v2/customers";
+import { getCatalog } from "@/api/catalog";
+import { searchCustomers } from "@/api/customers";
 
 /** The catalog: every price the POS shows is computed from it (model/pricing.ts). */
 export const useCatalog = () =>

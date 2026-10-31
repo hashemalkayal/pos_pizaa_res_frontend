@@ -7,7 +7,7 @@ import {
   listMenuProducts,
   listOptionGroups,
   listUnits,
-} from "@/api/v2/menu";
+} from "@/api/menu";
 
 /** Products and add-ons per page (server-side); categories and a product's variants are short lists. */
 export const MENU_PAGE_SIZE = 20;

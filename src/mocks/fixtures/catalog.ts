@@ -2,7 +2,7 @@ import type {
   CatalogCategory,
   CatalogUnit,
   CatalogVariant,
-} from "@/api/v2/catalog";
+} from "@/api/catalog";
 
 /**
  * DEVELOPMENT FIXTURE — never shown as live data. Shape of GET /api/catalog; names, SKUs and prices copied

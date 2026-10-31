@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Badge } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import type { OrderListItem, OrderStatus } from "@/api/v2/orders";
+import type { OrderListItem, OrderStatus } from "@/api/orders";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { orderDateTime } from "./queries";
 import classes from "./Orders.module.css";

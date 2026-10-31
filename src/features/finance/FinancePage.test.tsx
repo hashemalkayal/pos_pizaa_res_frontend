@@ -99,8 +99,8 @@ describe("Finance — today (the default range)", () => {
     expect(region("Total orders")).toHaveTextContent("4");
     expect(cashierRows()).toEqual([
       ["Cashier", "Orders", "Total sales (JOD)"],
-      ["cashier@mock.local", "2", "10.500"],
-      ["admin@mock.local", "1", "1.000"],
+      ["Mock Cashier", "2", "10.500"],
+      ["Mock Admin", "1", "1.000"],
       ["All cashiers", "3", "11.500"],
     ]);
     const integration = region("External integration");
@@ -145,7 +145,7 @@ describe("Finance — the date range", () => {
     await waitFor(() => expect(region("Total sales")).toHaveTextContent("20.000 JOD"));
     expect(region("Total orders")).toHaveTextContent("5");
     expect(hourRows()[0]).toBe("10:00–11:00314.500 JOD");
-    expect(cashierRows()[1]).toEqual(["cashier@mock.local", "3", "14.500"]);
+    expect(cashierRows()[1]).toEqual(["Mock Cashier", "3", "14.500"]);
     expect(within(region("Top selling items")).getAllByRole("listitem")[0]).toHaveTextContent("MargheritaMedium · Regular× 312.000 JOD");
     expect(region("External integration")).toHaveTextContent("Total sales4.500 JOD");
   });

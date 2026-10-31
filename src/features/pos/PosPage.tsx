@@ -8,7 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toApiError } from "@/api/errors";
-import { createOrder, getOrder, listOrders, type PaymentMethod } from "@/api/v2/orders";
+import { createOrder, getOrder, listOrders, type PaymentMethod } from "@/api/orders";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { CurrencyText } from "@/components/money/CurrencyText";

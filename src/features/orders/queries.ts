@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getOrder, listOrders, type OrderStatus, type ServiceType } from "@/api/v2/orders";
+import { getOrder, listOrders, type OrderStatus, type ServiceType } from "@/api/orders";
 
 /** Orders per page of the Orders tab (server-side pagination). */
 export const ORDERS_PAGE_SIZE = 20;

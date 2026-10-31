@@ -5,9 +5,9 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { apiBaseUrl } from "@/api/config";
-import { login } from "@/api/v2/auth";
-import { getCatalog } from "@/api/v2/catalog";
-import { quoteOrder } from "@/api/v2/orders";
+import { login } from "@/api/auth";
+import { getCatalog } from "@/api/catalog";
+import { quoteOrder } from "@/api/orders";
 import { clearStoredSession, storeSession } from "@/features/auth/session";
 import { fromFils } from "@/lib/money";
 import type { LineConfig } from "./cart";

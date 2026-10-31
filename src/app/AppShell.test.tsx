@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { getCatalog } from "@/api/v2/catalog";
+import { getCatalog } from "@/api/catalog";
 import { SESSION_STORAGE_KEY } from "@/features/auth/session";
 import i18n from "@/i18n";
 import { currentPathname, renderApp, signInAs } from "@/test/renderApp";

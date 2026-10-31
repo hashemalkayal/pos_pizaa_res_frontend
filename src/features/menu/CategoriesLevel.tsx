@@ -4,7 +4,7 @@ import { notifications } from "@mantine/notifications";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toApiError } from "@/api/errors";
-import { createCategory, deleteCategory, updateCategory, type MenuCategory } from "@/api/v2/menu";
+import { createCategory, deleteCategory, updateCategory, type MenuCategory } from "@/api/menu";
 import { useCatalog } from "@/features/pos/hooks/queries";
 import { useLocalized } from "@/features/pos/hooks/useLocalized";
 import { categoryIcon } from "@/features/pos/model/categoryIcon";

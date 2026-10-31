@@ -1,4 +1,4 @@
-import type { Customer } from "@/api/v2/customers";
+import type { Customer } from "@/api/customers";
 
 /** DEVELOPMENT FIXTURE — not real people. Initial customers of the MSW mocks (`yarn dev:mock`) and tests. */
 export const MOCK_CUSTOMERS: Customer[] = [

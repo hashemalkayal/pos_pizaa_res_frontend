@@ -1,5 +1,5 @@
 /**
- * LIVE CONTRACT TEST (`yarn test:live`, vitest.live.config.ts) — the typed V2 clients and the error model
+ * LIVE CONTRACT TEST (`yarn test:live`, vitest.live.config.ts) — the typed API clients and the error model
  * against the REAL local backend, and the MSW mocks compared with it request by request.
  *
  * Needs D:\Backend\pos running with `pnpm dev` (DEV database pos) and `pnpm dev:print-agent`.
@@ -11,9 +11,9 @@ import { jwtDecode } from "jwt-decode";
 import { apiBaseUrl } from "@/api/config";
 import { ApiError } from "@/api/errors";
 import { http, setUnauthorizedHandler } from "@/api/http";
-import { login } from "@/api/v2/auth";
-import { getCatalog, type CatalogCategory } from "@/api/v2/catalog";
-import { createOrder, quoteOrder, type Order, type OrderLineInput, type OrderQuote } from "@/api/v2/orders";
+import { login } from "@/api/auth";
+import { getCatalog, type CatalogCategory } from "@/api/catalog";
+import { createOrder, quoteOrder, type Order, type OrderLineInput, type OrderQuote } from "@/api/orders";
 import { clearStoredSession, sessionFromToken, storeSession } from "@/features/auth/session";
 import { formatMoney } from "@/lib/money";
 import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
@@ -26,7 +26,7 @@ if (!["localhost", "127.0.0.1"].includes(new URL(API).hostname)) {
 }
 const credentials = { email: String(import.meta.env.LIVE_EMAIL ?? ""), password: String(import.meta.env.LIVE_PASSWORD ?? "") };
 
-/** Every request sent by the typed clients, to prove that no legacy endpoint is used. */
+/** Every request sent by the typed clients, to prove that only the API routes are used. */
 const requested: string[] = [];
 http.interceptors.request.use((config) => {
   requested.push(`${config.method?.toUpperCase()} ${config.url}`);
@@ -180,7 +180,7 @@ describe("session", () => {
     }
   });
 
-  it("only V2 endpoints were called — never a legacy one", () => {
+  it("only API routes were called — never a route of the previous POS", () => {
     expect(requested.length).toBeGreaterThan(0);
     for (const call of requested) {
       expect(call).toMatch(/^(POST \/auth\/login|GET \/catalog|POST \/orders(\/quote)?|PATCH \/orders\/\d+|GET \/orders\/\d+)$/);

@@ -5,10 +5,14 @@ export type StaffRole = "ADMIN" | "CASHER";
 
 export interface SessionUser {
   id: number;
-  /** The backend has no display name; staff are shown by email (D64). */
   email: string;
   role: string;
+  /** The employee's shown name (token claim `displayName`); null when not set — then the email is shown. */
+  displayName: string | null;
 }
+
+/** The name shown for the signed-in employee: the display name, or the email. */
+export const shownName = (user: SessionUser) => user.displayName || user.email;
 
 export interface Session {
   accessToken: string;
@@ -17,18 +21,19 @@ export interface Session {
   user: SessionUser;
 }
 
-export const SESSION_STORAGE_KEY = "ep.v2.session";
+export const SESSION_STORAGE_KEY = "ep.session";
 
 interface TokenClaims {
   userId: unknown;
   email: unknown;
   role: unknown;
+  displayName: unknown;
   exp: unknown;
 }
 
 /**
- * Reads the claims the backend signs ({ userId, email, role, iat, exp }). The signature is verified by the
- * server on every request; the client only uses the claims for display, navigation and expiry.
+ * Reads the claims the backend signs ({ userId, email, role, displayName?, iat, exp }). The signature is verified by
+ * the server on every request; the client only uses the claims for display, navigation and expiry.
  */
 export const sessionFromToken = (accessToken: string): Session | null => {
   let claims: Partial<TokenClaims>;
@@ -37,10 +42,11 @@ export const sessionFromToken = (accessToken: string): Session | null => {
   } catch {
     return null;
   }
-  const { userId, email, role, exp } = claims;
+  const { userId, email, role, displayName, exp } = claims;
   if (typeof exp !== "number" || !Number.isInteger(userId) || (userId as number) <= 0) return null;
   if (typeof email !== "string" || typeof role !== "string") return null;
-  return { accessToken, expiresAt: new Date(exp * 1000).toISOString(), user: { id: userId as number, email, role } };
+  const name = typeof displayName === "string" && displayName.trim() ? displayName.trim() : null;
+  return { accessToken, expiresAt: new Date(exp * 1000).toISOString(), user: { id: userId as number, email, role, displayName: name } };
 };
 
 export const isSessionExpired = (session: Session, now: number = Date.now()) => Date.parse(session.expiresAt) <= now;

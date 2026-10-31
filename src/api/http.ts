@@ -16,7 +16,8 @@ export interface ApiEnvelope<T> {
   message: string;
 }
 
-export const unwrap = <T>(result: AxiosResponse<ApiEnvelope<T>>): T => result.data.response;
+export const unwrap = <T>(result: AxiosResponse<ApiEnvelope<T>>): T =>
+  result.data.response;
 
 type UnauthorizedHandler = (error: ApiError) => void;
 let onUnauthorized: UnauthorizedHandler | null = null;
@@ -48,5 +49,5 @@ http.interceptors.response.use(
     const skip = axios.isAxiosError(error) && error.config?.skipSessionExpiry;
     if (apiError.kind === "unauthorized" && !skip) onUnauthorized?.(apiError);
     return Promise.reject(apiError);
-  }
+  },
 );

@@ -1,6 +1,6 @@
 /**
  * DEVELOPMENT/TEST ONLY. Builds an unsigned token with the claims the backend signs
- * ({ userId, email, role, iat, exp }). The real backend rejects it; only the mocks accept it.
+ * ({ userId, email, role, displayName?, iat, exp }). The real backend rejects it; only the mocks accept it.
  */
 const base64Url = (value: unknown) =>
   btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))))
@@ -11,7 +11,7 @@ const base64Url = (value: unknown) =>
 export const TOKEN_LIFETIME_SECONDS = 15 * 24 * 60 * 60;
 
 export const buildMockToken = (
-  claims: { userId: number; email: string; role: string },
+  claims: { userId: number; email: string; role: string; displayName?: string | null },
   { issuedAt = Math.floor(Date.now() / 1000), lifetimeSeconds = TOKEN_LIFETIME_SECONDS } = {}
 ) => {
   const payload = { ...claims, iat: issuedAt, exp: issuedAt + lifetimeSeconds };

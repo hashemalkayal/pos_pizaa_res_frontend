@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogProduct } from "@/api/v2/catalog";
-import type { Customer } from "@/api/v2/customers";
+import type { CatalogProduct } from "@/api/catalog";
+import type { Customer } from "@/api/customers";
 import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
 import { canAddLine, canAddLines, cartReducer, itemCount, MAX_LINES, type CartLine, type LineConfig } from "./cart";
 import { doughTabs, labelWithoutDough, matchesSearch, normalizeSearch, sellableVariants, startingPrice, variantForDough } from "./catalogView";

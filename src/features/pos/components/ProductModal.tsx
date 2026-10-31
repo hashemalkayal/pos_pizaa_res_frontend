@@ -2,7 +2,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { ActionIcon, Badge, Button, Checkbox, Divider, Group, Modal, Radio, Stack, Tabs, Text, Textarea } from "@mantine/core";
 import { IconNote, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { CatalogProduct, CatalogVariant } from "@/api/v2/catalog";
+import type { CatalogProduct, CatalogVariant } from "@/api/catalog";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { fromFils } from "@/lib/money";
 import { cartReducer, MAX_COMMENT_LENGTH, newLineKey, normalizeConfig, type CartLine, type LineConfig } from "../model/cart";

@@ -5,7 +5,7 @@ import * as menu from "./menuStore";
 import * as store from "./orderStore";
 
 /**
- * DEVELOPMENT/TEST ONLY. Each handler reproduces the backend V2 contract for one route: status codes,
+ * DEVELOPMENT/TEST ONLY. Each handler reproduces the backend contract for one route: status codes,
  * body shapes and messages as implemented in the backend (paths match any base URL ending in /api).
  */
 
@@ -266,7 +266,7 @@ const menuHandlers = [
     if ((day(to) - day(from)) / 86_400_000 + 1 > 366) return appError(422, "REPORT_RANGE_TOO_LARGE", "A report covers at most 366 days.");
     const overview = store.financeOverview(from, to);
     // Cashiers are shown by email, like the backend (users have no other name).
-    const cashiers = overview.cashiers.map((row) => ({ ...row, name: MOCK_USERS.find((user) => user.id === row.userId)?.email ?? null }));
+    const cashiers = overview.cashiers.map((row) => ({ ...row, name: MOCK_USERS.find((user) => user.id === row.userId)?.name ?? null }));
     return envelope({ ...overview, cashiers }, "Finance overview fetched.");
   }),
 
@@ -318,7 +318,7 @@ export const handlers = [
       return envelope({}, "Invalid email or password", 401);
     }
 
-    const { token, exp } = buildMockToken({ userId: user.id, email: user.email, role: user.role });
+    const { token, exp } = buildMockToken({ userId: user.id, email: user.email, role: user.role, displayName: user.name });
     return envelope({ accessToken: token, expiresAt: new Date(exp * 1000).toISOString() }, "Login successful");
   }),
 

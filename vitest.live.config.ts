@@ -2,7 +2,7 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 /**
- * `yarn test:live`: src/**\/*.live.test.ts against the local DEV backend V2 (D:\Backend\pos, `pnpm dev`,
+ * `yarn test:live`: src/**\/*.live.test.ts against the local DEV backend (D:\Backend\pos, `pnpm dev`,
  * database pos). Node environment: no jsdom and no MSW server. Not part of `yarn test`.
  *   LIVE_API_URL   default http://localhost:8080/api (the tests refuse any non-local host)
  *   LIVE_EMAIL / LIVE_PASSWORD   a DEV account (backend docs/dev-setup.md)
