@@ -96,6 +96,15 @@ export interface KitchenPrint {
   errorClass: string | null;
 }
 
+/** An order's customer: name or phone may be missing (D79), never both. */
+export interface OrderCustomer {
+  id: number;
+  name: string | null;
+  phone: string | null;
+  /** The customer was deleted after it was linked; the order keeps it. */
+  deleted?: true;
+}
+
 export interface Order extends OrderTotals {
   id: number;
   /** Daily number, unique per business date. */
@@ -107,7 +116,7 @@ export interface Order extends OrderTotals {
   businessDate: string;
   /** VOIDED = cancelled (soft, permanent). */
   status: OrderStatus;
-  customer: { id: number; name: string; phone: string } | null;
+  customer: OrderCustomer | null;
   paymentMethod: PaymentMethod | null;
   delivery: { location: string | null; time: string | null };
   /** Derived by the backend (D78): DELIVERY when the order has delivery details, otherwise DINE_IN. */

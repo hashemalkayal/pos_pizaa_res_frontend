@@ -31,7 +31,8 @@ export const OrderCard = memo(({ order, onOpen }: OrderCardProps) => {
       </span>
       <span className={classes.cardDate}>{orderDateTime(order.createdAt, i18n.language)}</span>
       <span className={classes.cardCustomer} data-empty={!order.customer || undefined}>
-        {order.customer?.name ?? t("order.noCustomer")}
+        {order.customer ? order.customer.name || order.customer.phone : t("order.noCustomer")}
+        {order.customer?.deleted ? <span className={classes.cardDeleted}> · {t("pos.customer.deleted")}</span> : null}
       </span>
       <span className={classes.cardFooter}>
         <span className={classes.cardTags}>

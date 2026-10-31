@@ -182,7 +182,14 @@ const OrderDetails = ({ order }: { order: Order }) => {
               <Field label={t("order.customer")}>
                 {order.customer ? (
                   <>
-                    {order.customer.name} · <bdi dir="ltr">{order.customer.phone}</bdi>
+                    {order.customer.name}
+                    {order.customer.name && order.customer.phone ? " · " : null}
+                    {order.customer.phone ? <bdi dir="ltr">{order.customer.phone}</bdi> : null}
+                    {order.customer.deleted ? (
+                      <Text span size="xs" c="orange.8" fw={600} ms={6}>
+                        ({t("pos.customer.deleted")})
+                      </Text>
+                    ) : null}
                   </>
                 ) : (
                   t("order.noCustomer")

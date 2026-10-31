@@ -1,7 +1,10 @@
 import { http, unwrap, type ApiEnvelope } from "../http";
 import type { Page } from "./orders";
 
-/** Customers (backend: src/services/customer.service.ts). Optional on an order; identified by exact phone. */
+/**
+ * Customers (backend: src/services/customer.service.ts, D79 revised). Optional on an order. Name and phone are both
+ * required; a duplicate is the same name and phone (the same phone with another name is another customer).
+ */
 export interface Customer {
   id: number;
   name: string;
@@ -19,7 +22,7 @@ export const getCustomer = async (id: number, signal?: AbortSignal): Promise<Cus
   unwrap(await http.get<ApiEnvelope<Customer>>(`/customers/${id}`, { signal }));
 
 /**
- * POST /api/customers (201). A phone that already exists → 409 CUSTOMER_ALREADY_EXISTS with
+ * POST /api/customers (201). The same name and phone as an existing customer → 409 CUSTOMER_ALREADY_EXISTS with
  * `details.existingCustomerId`.
  */
 export const createCustomer = async (body: { name: string; phone: string }): Promise<Customer> =>

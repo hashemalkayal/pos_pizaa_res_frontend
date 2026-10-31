@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { errorMessageKey, toApiError } from "@/api/errors";
 import { createCustomer, getCustomer, type Customer } from "@/api/v2/customers";
+import type { OrderCustomer } from "@/api/v2/orders";
 import { CUSTOMER_SEARCH_MIN_LENGTH, useCustomerSearch } from "../hooks/queries";
 
 const PHONE_PATTERN = /^[0-9+()\- ]{3,32}$/;
@@ -18,7 +19,10 @@ interface NewCustomerModalProps {
   onSelect: (customer: Customer) => void;
 }
 
-/** POST /api/customers. A phone that already exists selects that customer instead (409 CUSTOMER_ALREADY_EXISTS). */
+/**
+ * POST /api/customers: name and phone are both required. The same name and phone as an existing customer selects
+ * that customer instead (409 CUSTOMER_ALREADY_EXISTS); the same phone with another name is a new customer.
+ */
 const NewCustomerModal = ({ opened, initialQuery, onClose, onSelect }: NewCustomerModalProps) => {
   const { t } = useTranslation();
   const looksLikePhone = PHONE_PATTERN.test(initialQuery.trim());
@@ -75,8 +79,8 @@ const NewCustomerModal = ({ opened, initialQuery, onClose, onSelect }: NewCustom
 };
 
 interface CustomerPickerProps {
-  /** The linked customer (an order carries id, name and phone only). */
-  customer: Pick<Customer, "id" | "name" | "phone"> | null;
+  /** The linked customer (an order carries id, name and phone only, and `deleted` once the customer is deleted). */
+  customer: OrderCustomer | null;
   onChange: (customer: Customer | null) => void;
   /** False where customers must not be created (the Orders tab links existing customers only). */
   allowCreate?: boolean;
@@ -107,9 +111,16 @@ export const CustomerPicker = ({ customer, onChange, allowCreate = true }: Custo
               <Text fw={700} size="sm" truncate>
                 {customer.name}
               </Text>
-              <Text size="xs" c="dimmed" dir="ltr" ta="start">
-                {customer.phone}
-              </Text>
+              {customer.phone ? (
+                <Text size="xs" c="dimmed" dir="ltr" ta="start">
+                  {customer.phone}
+                </Text>
+              ) : null}
+              {customer.deleted ? (
+                <Text size="xs" c="orange.8" fw={600}>
+                  {t("pos.customer.deleted")}
+                </Text>
+              ) : null}
             </div>
           </Group>
           <Group gap={4} wrap="nowrap">

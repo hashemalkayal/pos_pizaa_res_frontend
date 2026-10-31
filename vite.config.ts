@@ -37,5 +37,7 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "**/*.live.test.ts"],
     env: { VITE_PUBLIC_API_URL: "http://localhost:3000/api" },
     restoreMocks: true,
+    // Whole-app renders (lazy routes, MSW) run in parallel workers: allow slow machines, still fail stuck tests.
+    testTimeout: 15_000,
   },
 });

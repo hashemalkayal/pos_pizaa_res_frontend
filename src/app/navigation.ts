@@ -5,11 +5,10 @@ import {
   IconReceipt,
   IconReportMoney,
   IconToolsKitchen2,
-  IconUsers,
 } from "@tabler/icons-react";
 
 export interface AppSection {
-  id: "pos" | "orders" | "customers" | "menu" | "reports" | "finance";
+  id: "pos" | "orders" | "menu" | "reports" | "finance";
   path: string;
   labelKey: string;
   icon: Icon;
@@ -23,9 +22,8 @@ export interface AppSection {
 export const APP_SECTIONS: AppSection[] = [
   { id: "pos", path: "/pos", labelKey: "nav.pos", icon: IconCashRegister },
   { id: "orders", path: "/orders", labelKey: "nav.orders", icon: IconReceipt },
-  { id: "customers", path: "/customers", labelKey: "nav.customers", icon: IconUsers, plannedPhase: 3 },
-  // `/menu` is the public menu page, so menu management lives at `/catalog`.
-  { id: "menu", path: "/catalog", labelKey: "nav.menu", icon: IconToolsKitchen2, plannedPhase: 4 },
+  // `/menu` is the public menu page, so menu management lives at `/catalog` (ADMIN only, D80).
+  { id: "menu", path: "/catalog", labelKey: "nav.menu", icon: IconToolsKitchen2, adminOnly: true },
   { id: "reports", path: "/reports", labelKey: "nav.reports", icon: IconChartBar, adminOnly: true, plannedPhase: 5 },
   { id: "finance", path: "/finance", labelKey: "nav.finance", icon: IconReportMoney, adminOnly: true, plannedPhase: 5 },
 ];

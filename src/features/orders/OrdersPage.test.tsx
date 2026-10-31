@@ -336,3 +336,33 @@ describe("Orders — drawer", () => {
     expect(screen.getByRole("textbox", { name: "البحث برقم الطلب" })).toBeInTheDocument();
   });
 });
+
+describe("Orders — deleted customers (soft delete, D79)", () => {
+  it("an order keeps its deleted customer (marked, amounts unchanged); neither the POS nor the Orders tab offers it again", async () => {
+    const kept = createOrder({ customerId: 1 });
+    createOrder();
+    store.deleteCustomer(1);
+    const user = await openOrders("/orders/1");
+
+    let panel = await drawer(1);
+    expect(within(panel).getByText("Mock Customer")).toBeInTheDocument();
+    expect(within(panel).getByText("Deleted customer")).toBeInTheDocument();
+    expect(within(panel).getByText("Total").nextSibling).toHaveTextContent(`${kept.totalAmount} JOD`);
+    await user.click(within(panel).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(card(1)).toHaveTextContent("Mock Customer · Deleted customer"));
+
+    await user.click(card(2));
+    panel = await drawer(2);
+    await user.type(within(panel).getByRole("textbox", { name: "Search customers" }), "Mock");
+    expect(await screen.findByText("No customer found.")).toBeInTheDocument();
+    await user.click(within(panel).getByRole("button", { name: "Close" }));
+
+    await user.click(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: /POS/ }));
+    const cart = await screen.findByRole("complementary", { name: "Current order" }, { timeout: 5000 });
+    await user.type(within(cart).getByRole("textbox", { name: "Search customers" }), "0790");
+    expect(await screen.findByText("No customer found.")).toBeInTheDocument();
+    expect(() => createOrder({ customerId: 1 })).toThrow(/does not exist/);
+    expect(store.findOrder(kept.id).totalAmount).toBe(kept.totalAmount);
+    expect(store.findOrder(kept.id).customer).toEqual({ id: 1, name: "Mock Customer", phone: "0790000001", deleted: true });
+  });
+});

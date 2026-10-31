@@ -1,11 +1,15 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { APP_SECTIONS } from "./navigation";
+import { APP_SECTIONS, type AppSection } from "./navigation";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlannedSectionPage } from "./pages/PlannedSectionPage";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoginPage } from "@/features/auth/LoginPage";
-import { AdminOnly, RedirectWhenSignedIn, RequireSession } from "@/features/auth/RouteGuards";
+import {
+  AdminOnly,
+  RedirectWhenSignedIn,
+  RequireSession,
+} from "@/features/auth/RouteGuards";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { PosDraftProvider } from "@/features/pos/state/PosDraftProvider";
 
@@ -16,12 +20,39 @@ const PublicMenu = lazy(() => import("@/public-site/Menu"));
 // Staff screens with their own chunks.
 const PosPage = lazy(() => import("@/features/pos/PosPage"));
 const OrdersPage = lazy(() => import("@/features/orders/OrdersPage"));
-const lazyPage = (page: ReactNode) => <Suspense fallback={<LoadingState />}>{page}</Suspense>;
+const MenuPage = lazy(() => import("@/features/menu/MenuPage"));
+
+/**
+ * The Orders tab opens an order in its drawer at /orders/:orderId, and Menu keeps its tab at /catalog/:tab: one route
+ * each, so the page keeps its state.
+ */
+const ROUTE_PARAMS: Partial<Record<AppSection["id"], string>> = {
+  orders: ":orderId?",
+  menu: ":tab?",
+};
+
+const lazyPage = (page: ReactNode) => (
+  <Suspense fallback={<LoadingState />}>{page}</Suspense>
+);
 
 export const AppRoutes = () => (
   <Routes>
-    <Route path="/landing" element={<Suspense fallback={null}><Landing /></Suspense>} />
-    <Route path="/menu" element={<Suspense fallback={null}><PublicMenu /></Suspense>} />
+    <Route
+      path="/landing"
+      element={
+        <Suspense fallback={null}>
+          <Landing />
+        </Suspense>
+      }
+    />
+    <Route
+      path="/menu"
+      element={
+        <Suspense fallback={null}>
+          <PublicMenu />
+        </Suspense>
+      }
+    />
 
     <Route element={<RedirectWhenSignedIn />}>
       <Route path="/login" element={<LoginPage />} />
@@ -38,10 +69,24 @@ export const AppRoutes = () => (
         <Route index element={<Navigate to="/pos" replace />} />
         {APP_SECTIONS.map((section) => {
           const page =
-            section.id === "pos" ? lazyPage(<PosPage />) : section.id === "orders" ? lazyPage(<OrdersPage />) : <PlannedSectionPage section={section} />;
-          // The Orders tab opens an order in its drawer at /orders/:orderId: one route, so the list keeps its state.
-          const path = section.id === "orders" ? `${section.path}/:orderId?` : section.path;
-          return <Route key={section.id} path={path} element={section.adminOnly ? <AdminOnly>{page}</AdminOnly> : page} />;
+            section.id === "pos" ? (
+              lazyPage(<PosPage />)
+            ) : section.id === "orders" ? (
+              lazyPage(<OrdersPage />)
+            ) : section.id === "menu" ? (
+              lazyPage(<MenuPage />)
+            ) : (
+              <PlannedSectionPage section={section} />
+            );
+          const param = ROUTE_PARAMS[section.id];
+          const path = param ? `${section.path}/${param}` : section.path;
+          return (
+            <Route
+              key={section.id}
+              path={path}
+              element={section.adminOnly ? <AdminOnly>{page}</AdminOnly> : page}
+            />
+          );
         })}
         <Route path="*" element={<NotFoundPage />} />
       </Route>

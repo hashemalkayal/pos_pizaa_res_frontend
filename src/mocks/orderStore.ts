@@ -1,8 +1,10 @@
-import type { CatalogCategory, CatalogProduct, CatalogVariant } from "@/api/v2/catalog";
 import type { Customer } from "@/api/v2/customers";
 import type { Order, OrderLine, OrderListItem, OrderQuote, OrderTotals, PaymentMethod } from "@/api/v2/orders";
-import { MOCK_CATALOG } from "./fixtures/catalog";
 import { MOCK_CUSTOMERS } from "./fixtures/customers";
+import * as menu from "./menuStore";
+import { MockError } from "./mockError";
+
+export { MockError };
 
 /**
  * DEVELOPMENT/TEST ONLY. In-memory orders and customers priced like the backend V2
@@ -10,18 +12,6 @@ import { MOCK_CUSTOMERS } from "./fixtures/customers";
  * discountAmount = round half up(subtotal × percent / 100, 3), total = subtotal − discount + delivery.
  * Amounts are integer fils (thousandths of a dinar), so the arithmetic is exact.
  */
-
-/** A backend AppError (status, code, message, details). */
-export class MockError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly details: unknown = null
-  ) {
-    super(message);
-  }
-}
 
 type FieldError = { field: string; message: string };
 
@@ -169,33 +159,40 @@ export const validateCreate = (body: unknown): CreateBody => {
   return value as unknown as CreateBody;
 };
 
-export const validateCustomer = (body: unknown): { name: string; phone: string } => {
+type CustomerBody = { name: string; phone: string };
+
+/** POST /api/customers (D79 revised): name and phone are both required. */
+export const validateCustomer = (body: unknown): CustomerBody => {
   const check = new Validator();
   const value = isRecord(body) ? body : {};
   validateCustomerFields(value, check, "");
   check.throwIfInvalid();
-  return value as { name: string; phone: string };
+  return value as CustomerBody;
+};
+
+/** PATCH /api/customers/:id: either field may change, but neither can be emptied. */
+export const validateCustomerUpdate = (body: unknown): Partial<CustomerBody> => {
+  const check = new Validator();
+  const value = isRecord(body) ? body : {};
+  check.keys(value, ["name", "phone"]);
+  if ("name" in value) check.string(value.name, "name", 191, { required: true, min: 1 });
+  if ("phone" in value) {
+    check.string(value.phone, "phone", 32, { required: true, min: 3 });
+    if (typeof value.phone === "string" && !PHONE.test(value.phone.trim())) check.fail("phone", "must be a phone number");
+  }
+  check.throwIfInvalid();
+  return value as Partial<CustomerBody>;
 };
 
 // ─── Pricing ─────────────────────────────────────────────────────────────────
 
-const variantIndex = new Map<number, { variant: CatalogVariant; product: CatalogProduct; category: CatalogCategory }>(
-  MOCK_CATALOG.flatMap((category) => category.products.flatMap((product) => product.variants.map((variant) => [variant.id, { variant, product, category }] as const)))
-);
-
+/** Current menu (menuStore): deleted or unavailable items are refused like the backend does. */
 const priceLine = (input: LineBody): OrderLine => {
-  const entry = variantIndex.get(input.variantId);
-  if (!entry) throw new MockError(422, "VARIANT_NOT_FOUND", `Variant ${input.variantId} does not exist.`, { variantId: input.variantId });
-  const { variant, product, category } = entry;
-  if (!variant.isActive || variant.archived) throw new MockError(422, "VARIANT_UNAVAILABLE", `Variant ${input.variantId} is not available for sale.`, { variantId: input.variantId });
+  const { variant, product, category, addOn } = menu.variantForSale(input.variantId);
 
   const addOnIds = input.addOnIds ?? [];
   if (new Set(addOnIds).size !== addOnIds.length) throw new MockError(422, "VALIDATION_ERROR", "An add-on is listed twice on the same line.", { addOnIds });
-  const addOns = addOnIds.map((addOnId) => {
-    const link = product.addOns.find((candidate) => candidate.addOnId === addOnId);
-    if (!link) throw new MockError(422, "ADDON_NOT_AVAILABLE", `Add-on ${addOnId} is not available for ${product.nameEn}.`, { addOnId, variantId: variant.id });
-    return { addOnId, nameEn: link.nameEn, nameAr: link.nameAr, unitPrice: link.price };
-  });
+  const addOns = addOnIds.map(addOn);
   const addOnsFils = addOns.reduce((sum, addOn) => sum + fils(addOn.unitPrice), 0);
 
   return {
@@ -242,7 +239,10 @@ export const quote = (body: QuoteBody): OrderQuote => {
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
-let customers: Customer[] = [];
+/** deletedAt: soft delete (D79); a deleted customer stays in the store and on its orders. */
+type MockCustomer = Customer & { deletedAt: string | null };
+
+let customers: MockCustomer[] = [];
 let orders: Order[] = [];
 let nextOrderId = 1;
 let nextLineId = 1;
@@ -250,7 +250,7 @@ let nextCustomerId = 1;
 const dailyCounters = new Map<string, number>();
 
 export const resetOrderStore = () => {
-  customers = MOCK_CUSTOMERS.map((customer) => ({ ...customer }));
+  customers = MOCK_CUSTOMERS.map((customer) => ({ ...customer, deletedAt: null }));
   orders = [];
   nextOrderId = 1;
   nextLineId = 1;
@@ -262,31 +262,68 @@ resetOrderStore();
 const businessDate = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Amman" }).format(at);
 const publicCustomer = ({ id, name, phone, createdAt }: Customer): Customer => ({ id, name, phone, createdAt });
 const withOrderCount = (customer: Customer): Customer => ({ ...publicCustomer(customer), orderCount: orders.filter((order) => order.customer?.id === customer.id).length });
+/** The customer as an order shows it (backend order-serializer). */
+const orderCustomer = (customer: MockCustomer) => ({ id: customer.id, name: customer.name, phone: customer.phone, ...(customer.deletedAt ? { deleted: true as const } : {}) });
+/** Orders read the customer when they are serialized: keep the mock orders' copies current. */
+const syncOrders = (customer: MockCustomer) => {
+  for (const order of orders) if (order.customer?.id === customer.id) order.customer = orderCustomer(customer);
+};
+
+/** Stored form (backend customer.service): the name with single spaces, the phone without spaces. */
+const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
+const normalizePhone = (phone: string) => phone.replace(/\s+/g, "");
+const activeCustomer = (id: unknown) => customers.find((candidate) => candidate.id === id && !candidate.deletedAt) ?? null;
+/** D79 revised: a duplicate is the same name (any case) and phone among active customers. */
+const activeByNameAndPhone = (name: string, phone: string) =>
+  customers.find((candidate) => !candidate.deletedAt && candidate.name.toLowerCase() === normalizeName(name).toLowerCase() && candidate.phone === normalizePhone(phone)) ?? null;
 
 const insertCustomer = (name: string, phone: string) => {
-  const customer: Customer = { id: nextCustomerId++, name: name.trim(), phone: phone.trim(), createdAt: new Date().toISOString() };
+  const customer: MockCustomer = { id: nextCustomerId++, name: normalizeName(name), phone: normalizePhone(phone), createdAt: new Date().toISOString(), deletedAt: null };
   customers.push(customer);
   return customer;
 };
 
-export const searchCustomers = (q: string | null, pageSize: number) => {
+export const searchCustomers = (q: string | null, pageSize: number, page = 1) => {
   const term = q?.trim().toLowerCase() ?? "";
   const matches = customers
+    .filter((customer) => !customer.deletedAt)
     .filter((customer) => !term || customer.name.toLowerCase().includes(term) || customer.phone.includes(term))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
-  return paginate(matches.map(withOrderCount), pageSize);
+  return paginate(matches.map(withOrderCount), pageSize, page);
 };
 
 export const findCustomer = (id: number) => {
-  const customer = customers.find((candidate) => candidate.id === id);
+  const customer = activeCustomer(id);
   if (!customer) throw new MockError(404, "CUSTOMER_NOT_FOUND", "Customer not found.");
   return withOrderCount(customer);
 };
 
-export const createCustomer = (input: { name: string; phone: string }) => {
-  const existing = customers.find((customer) => customer.phone === input.phone.trim());
-  if (existing) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "A customer with this phone number already exists.", { existingCustomerId: existing.id });
+export const createCustomer = (input: CustomerBody) => {
+  const existing = activeByNameAndPhone(input.name, input.phone);
+  if (existing) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "A customer with this name and phone number already exists.", { existingCustomerId: existing.id });
   return publicCustomer(insertCustomer(input.name, input.phone));
+};
+
+/** PATCH /api/customers/:id: the sent fields change (never to empty, see validateCustomerUpdate). */
+export const updateCustomer = (id: number, input: Partial<CustomerBody>) => {
+  const customer = activeCustomer(id);
+  if (!customer) throw new MockError(404, "CUSTOMER_NOT_FOUND", "Customer not found.");
+  const name = input.name === undefined ? customer.name : normalizeName(input.name);
+  const phone = input.phone === undefined ? customer.phone : normalizePhone(input.phone);
+  const other = activeByNameAndPhone(name, phone);
+  if (other && other.id !== id) throw new MockError(409, "CUSTOMER_ALREADY_EXISTS", "Another customer already has this name and phone number.", { existingCustomerId: other.id });
+  Object.assign(customer, { name, phone });
+  syncOrders(customer);
+  return publicCustomer(customer);
+};
+
+/** DELETE /api/customers/:id: soft delete; the customer's orders keep it (marked deleted). */
+export const deleteCustomer = (id: number) => {
+  const customer = activeCustomer(id);
+  if (!customer) throw new MockError(404, "CUSTOMER_NOT_FOUND", "Customer not found.");
+  customer.deletedAt = new Date().toISOString();
+  syncOrders(customer);
+  return { id };
 };
 
 /**
@@ -301,12 +338,13 @@ export const createOrder = (body: CreateBody, creator: { id: number; name: strin
       pricing: priced,
     });
   }
-  let customer: Customer | null = null;
+  // A deleted customer is never linked again (D79); find-or-create by name and phone looks at active customers only.
+  let customer: MockCustomer | null = null;
   if (body.customerId) {
-    customer = customers.find((candidate) => candidate.id === body.customerId) ?? null;
+    customer = activeCustomer(body.customerId);
     if (!customer) throw new MockError(422, "CUSTOMER_NOT_FOUND", `Customer ${body.customerId} does not exist.`);
   } else if (body.customer) {
-    customer = customers.find((candidate) => candidate.phone === body.customer?.phone.trim()) ?? insertCustomer(body.customer.name, body.customer.phone);
+    customer = activeByNameAndPhone(body.customer.name, body.customer.phone) ?? insertCustomer(body.customer.name, body.customer.phone);
   }
 
   const now = new Date();
@@ -322,7 +360,7 @@ export const createOrder = (body: CreateBody, creator: { id: number; name: strin
     createdAt: now.toISOString(),
     businessDate: date,
     status: "ACTIVE",
-    customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
+    customer: customer ? orderCustomer(customer) : null,
     paymentMethod: body.paymentMethod,
     delivery: { location: body.delivery?.location?.trim() ?? null, time: body.delivery?.time?.trim() ?? null },
     // D78: delivery details (address, time or a charge) make a delivery order.
@@ -395,10 +433,11 @@ export const updateOrderCustomer = (id: number, body: unknown) => {
   if (value.customerId === undefined) return order;
   if (value.customerId === null) {
     order.customer = null;
-  } else {
-    const customer = customers.find((candidate) => candidate.id === value.customerId);
+  } else if (value.customerId !== order.customer?.id) {
+    // Sending the order's own customer again changes nothing, even if it was deleted since (D79).
+    const customer = activeCustomer(value.customerId);
     if (!customer) throw new MockError(422, "CUSTOMER_NOT_FOUND", `Customer ${String(value.customerId)} does not exist.`);
-    order.customer = { id: customer.id, name: customer.name, phone: customer.phone };
+    order.customer = orderCustomer(customer);
   }
   return touched(order);
 };

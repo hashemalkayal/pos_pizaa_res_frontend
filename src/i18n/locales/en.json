@@ -7,7 +7,6 @@
     "label": "Main navigation",
     "pos": "POS",
     "orders": "Orders",
-    "customers": "Customers",
     "menu": "Menu",
     "reports": "Reports",
     "finance": "Finance",
@@ -182,8 +181,9 @@
       "cancel": "Cancel",
       "nameRequired": "Enter the customer's name.",
       "phoneInvalid": "Enter a phone number (digits, +, -, spaces).",
-      "exists": "This phone number already belongs to {{name}}. That customer is selected.",
-      "created": "Customer {{name}} added."
+      "exists": "{{name}} already exists with this phone number. That customer is selected.",
+      "created": "Customer {{name}} added.",
+      "deleted": "Deleted customer"
     },
     "delivery": {
       "location": "Delivery address",
@@ -345,5 +345,138 @@
       "CUSTOMER_NOT_FOUND": "That customer no longer exists. Choose another one."
     },
     "close": "Close"
+  },
+  "menu": {
+    "tabs": {
+      "menu": "Menu",
+      "categories": "Categories",
+      "products": "Products",
+      "variants": "Variants",
+      "addons": "Add-ons"
+    },
+    "search": {
+      "categories": "Search categories",
+      "products": "Search products",
+      "addons": "Search add-ons"
+    },
+    "searchPlaceholder": "Name in English or Arabic",
+    "clearSearch": "Clear search",
+    "add": {
+      "categories": "Add category",
+      "products": "Add product",
+      "variants": "Add variant",
+      "addons": "Add add-on"
+    },
+    "count": {
+      "categories_one": "{{count}} category",
+      "categories_other": "{{count}} categories",
+      "products_one": "{{count}} product",
+      "products_other": "{{count}} products",
+      "variants_one": "{{count}} variant",
+      "variants_other": "{{count}} variants",
+      "addons_one": "{{count}} add-on",
+      "addons_other": "{{count}} add-ons"
+    },
+    "productCount_one": "{{count}} product",
+    "productCount_other": "{{count}} products",
+    "variantCount_one": "{{count}} variant",
+    "variantCount_other": "{{count}} variants",
+    "loading": "Loading…",
+    "notFound": "This item no longer exists.",
+    "close": "Close",
+    "back": "Back",
+    "breadcrumbs": "Menu levels",
+    "categoryDetails": "Category details",
+    "productDetails": "Product details",
+    "sizesAndPrices": "Sizes and prices",
+    "prices": "Prices",
+    "empty": {
+      "categories": "No categories yet.",
+      "variants": "This product has no variants yet. It is not shown in the POS until it has one.",
+      "addons": "No add-ons yet.",
+      "categoryProducts": "No products in this category yet.",
+      "optionVariants": "No variants with this option yet."
+    },
+    "emptyFiltered": "Nothing matches the search.",
+    "pagination": {
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "fields": {
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic)",
+      "descriptionEn": "Description (English)",
+      "descriptionAr": "Description (Arabic)",
+      "sortOrder": "Display order",
+      "sortOrderHint": "Lower numbers come first in the POS.",
+      "category": "Category",
+      "usesUnits": "Sold in sizes",
+      "usesUnitsHint": "Each variant then has a size (for example Medium or Large).",
+      "optionGroups": "Options",
+      "optionGroupsHint": "Such as dough type or pasta type: each variant has one value of each.",
+      "product": "Product",
+      "variant": "Variant",
+      "unit": "Size",
+      "price": "Price (JOD)",
+      "isDefault": "Default choice",
+      "isDefaultHint": "Selected first when the product is opened in the POS.",
+      "sku": "SKU"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "draft": "No variants yet: not in the POS",
+    "draftHint": "This product has no variants yet, so it is not shown in the POS. Add a variant in the Variants tab.",
+    "default": "Default",
+    "structureLocked": "Sizes and options can't change once the product has variants. Its variants keep them.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "editLabel": "Edit",
+    "createTitle": {
+      "categories": "New category",
+      "products": "New product",
+      "variants": "New variant",
+      "addons": "New add-on"
+    },
+    "saved": "Changes saved.",
+    "created": "{{name}} added.",
+    "deleted": "{{name}} deleted.",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": {
+      "categories": "The category leaves the menu and the POS. Past orders keep it. This can't be undone from the POS.",
+      "products": "The product and its variants leave the menu and the POS. Past orders keep them, with the prices they were charged. This can't be undone from the POS.",
+      "variants": "This variant leaves the POS. Past orders keep it, with the price it was charged. If it is the product's last variant, the product leaves the POS until a new one is added.",
+      "addons": "The add-on is no longer offered on any product. Past orders keep it, with the price it was charged. This can't be undone from the POS."
+    },
+    "deleteKeep": "Keep",
+    "deleteConfirm": "Delete",
+    "addOnProducts": "Products and prices",
+    "addOnNoProducts": "Not offered on any product yet.",
+    "addOnSetPrice": "Offer on a product",
+    "addOnSave": "Save price",
+    "addOnRemoveFrom": "Stop offering on {{name}}",
+    "addOnLinked": "Price saved for {{name}}.",
+    "addOnUnlinked": "No longer offered on {{name}}.",
+    "addOnPricesHint": "After saving, open the add-on to set its price on each product.",
+    "validation": {
+      "required": "Required.",
+      "tooLong": "Too long.",
+      "price": "Enter an amount with up to 3 decimals, for example 1.500.",
+      "sortOrder": "Enter a whole number from 0 to 100000.",
+      "choose": "Choose one."
+    },
+    "errors": {
+      "CATEGORY_HAS_PRODUCTS": "This category still has products. Move them to another category or delete them first.",
+      "CATEGORY_ALREADY_EXISTS": "Another category already uses this English or Arabic name (deleted categories included).",
+      "CATEGORY_NOT_FOUND": "That category no longer exists. Choose another one.",
+      "PRODUCT_ALREADY_EXISTS": "Another product in this category already uses this name (deleted products included).",
+      "PRODUCT_STRUCTURE_LOCKED": "Sizes and options can't change once the product has variants.",
+      "VARIANT_ALREADY_EXISTS": "This product already has a variant with this size and these options.",
+      "ADDON_ALREADY_EXISTS": "Another add-on already uses this English or Arabic name (deleted add-ons included).",
+      "ADDON_NOT_FOUND": "This add-on no longer exists."
+    }
   }
 }

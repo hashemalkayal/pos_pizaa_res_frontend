@@ -1,40 +1,15 @@
 import { memo, useMemo, useState, type Ref } from "react";
 import { ActionIcon, Badge, Button, Kbd, ScrollArea, TextInput } from "@mantine/core";
-import {
-  IconBaguette,
-  IconBottle,
-  IconBowlSpoon,
-  IconBread,
-  IconChefHat,
-  IconFlask,
-  IconPizza,
-  IconSalad,
-  IconSearch,
-  IconToolsKitchen2,
-  IconX,
-} from "@tabler/icons-react";
+import { IconSearch, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CatalogCategory, CatalogProduct } from "@/api/v2/catalog";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { isSellable, matchesSearch, sellableVariants, startingPrice } from "../model/catalogView";
+import { categoryIcon } from "../model/categoryIcon";
 import { useLocalized } from "../hooks/useLocalized";
 import { CategoryScroller } from "./CategoryScroller";
 import classes from "../Pos.module.css";
-
-/** Placeholder art for products without a photo, by category (the catalog has no photos yet). */
-const categoryIcon = (category: CatalogCategory) => {
-  const name = category.nameEn.toLowerCase();
-  if (name.includes("pizza")) return IconPizza;
-  if (name.includes("pasta")) return IconBowlSpoon;
-  if (name.includes("salad")) return IconSalad;
-  if (name.includes("drink")) return IconBottle;
-  if (name.includes("sandwich")) return IconBaguette;
-  if (name.includes("manak") || name.includes("bread")) return IconBread;
-  if (name.includes("lab")) return IconFlask;
-  if (name.includes("staff")) return IconChefHat;
-  return IconToolsKitchen2;
-};
 
 interface ProductCardProps {
   product: CatalogProduct;

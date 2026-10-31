@@ -569,15 +569,44 @@ describe("POS — order details", () => {
     expect(created[0]).toMatchObject({ customerId: 3, paymentMethod: "CLIQ" });
   });
 
-  it("creating a customer with a phone that exists selects the existing customer", async () => {
+  it("a new customer needs a name and a phone; the same name and phone selects the existing customer, the same phone with another name is a new one", async () => {
     const user = await openPos();
     await user.click(within(cart()).getByRole("button", { name: "New customer" }));
-    const dialog = await screen.findByRole("dialog", { name: "New customer" });
+    let dialog = await screen.findByRole("dialog", { name: "New customer" });
+    await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
+    expect(within(dialog).getByText("Enter the customer's name.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a phone number (digits, +, -, spaces).")).toBeInTheDocument();
+
+    await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), " mock customer ");
+    await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0790000001");
+    await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
+    expect(await screen.findByText("Mock Customer already exists with this phone number. That customer is selected.")).toBeInTheDocument();
+    expect(within(cart()).getByText("Mock Customer")).toBeInTheDocument();
+    expect(store.searchCustomers(null, 50).pagination.total).toBe(2);
+
+    await user.click(within(cart()).getByRole("button", { name: "Remove customer" }));
+    await user.click(within(cart()).getByRole("button", { name: "New customer" }));
+    dialog = await screen.findByRole("dialog", { name: "New customer" });
     await user.type(within(dialog).getByRole("textbox", { name: /Name/ }), "Someone Else");
     await user.type(within(dialog).getByRole("textbox", { name: /Phone/ }), "0790000001");
     await user.click(within(dialog).getByRole("button", { name: "Save customer" }));
-    expect(await screen.findByText("This phone number already belongs to Mock Customer. That customer is selected.")).toBeInTheDocument();
-    expect(within(cart()).getByText("Mock Customer")).toBeInTheDocument();
+    expect(await screen.findByText("Customer Someone Else added.")).toBeInTheDocument();
+    expect(within(cart()).getByText("Someone Else")).toBeInTheDocument();
+    expect(store.searchCustomers(null, 50).pagination.total).toBe(3);
+  });
+
+  it("checkout without a customer: the order is created, no customer is sent or invented", async () => {
+    const user = await openPos();
+    const created = recordBodies<CreateOrderRequest>("*/api/orders");
+    await addProduct(user, "Water");
+    const payment = await payWith(user, "Visa");
+    await user.click(within(payment).getByRole("button", { name: /^Confirm payment/ }));
+    await screen.findByRole("heading", { name: "Order created" });
+    expect(created).toHaveLength(1);
+    expect(created[0]).not.toHaveProperty("customerId");
+    expect(created[0]).not.toHaveProperty("customer");
+    expect(store.findOrder(1).customer).toBeNull();
+    expect(store.searchCustomers(null, 50).pagination.total).toBe(2);
   });
 });
 

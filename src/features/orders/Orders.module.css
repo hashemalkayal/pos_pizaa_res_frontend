@@ -126,6 +126,11 @@
   }
 }
 
+.cardDeleted {
+  color: var(--mantine-color-dimmed);
+  font-weight: 500;
+}
+
 .cardFooter {
   display: flex;
   flex-wrap: wrap;

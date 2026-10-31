@@ -35,20 +35,34 @@ describe("route protection", () => {
 });
 
 describe("application shell", () => {
-  it("cashier: POS, Orders, Customers, Menu — no Reports or Finance (UX rule, D30)", async () => {
+  it("cashier: POS and Orders — no Menu (ADMIN only, D80), Reports or Finance (UX rule, D30)", async () => {
     signInAs("CASHER");
     renderApp("/pos");
     await screen.findByRole("heading", { level: 1, name: "POS" });
     const links = within(navigation()).getAllByRole("link").map((link) => link.textContent);
-    expect(links.map((text) => text?.replace("Soon", ""))).toEqual(["POS", "Orders", "Customers", "Menu"]);
+    expect(links.map((text) => text?.replace("Soon", ""))).toEqual(["POS", "Orders"]);
     expect(within(navigation()).getByRole("link", { name: /POS/ })).toHaveAttribute("aria-current", "page");
   });
 
-  it("admin also sees Reports and Finance; a cashier opening /reports gets the role notice", async () => {
+  it("there is no Customers section for any role: not in the navigation, and its addresses are not found", async () => {
+    for (const role of ["CASHER", "ADMIN"] as const) {
+      signInAs(role);
+      const { unmount } = renderApp("/customers");
+      expect(await screen.findByText("Page not found")).toBeInTheDocument();
+      expect(within(navigation()).queryByRole("link", { name: /Customers/ })).not.toBeInTheDocument();
+      unmount();
+    }
+    signInAs("ADMIN");
+    renderApp("/customers/1");
+    expect(await screen.findByText("Page not found")).toBeInTheDocument();
+  });
+
+  it("admin also sees Menu, Reports and Finance; a cashier opening /reports gets the role notice", async () => {
     signInAs("ADMIN");
     renderApp("/reports");
     expect(await screen.findByText("Reports is being rebuilt")).toBeInTheDocument();
     expect(within(navigation()).getByRole("link", { name: /Finance/ })).toBeInTheDocument();
+    expect(within(navigation()).getByRole("link", { name: /Menu/ })).not.toHaveTextContent("Soon"); // Phase 5 delivered
   });
 
   it("a cashier opening an admin-only address sees the role notice", async () => {
@@ -58,10 +72,10 @@ describe("application shell", () => {
   });
 
   it("planned sections say which phase delivers them (no fake data)", async () => {
-    signInAs("CASHER");
-    renderApp("/catalog");
-    expect(await screen.findByText("Menu is being rebuilt")).toBeInTheDocument();
-    expect(screen.getByText("Phase 4")).toBeInTheDocument();
+    signInAs("ADMIN");
+    renderApp("/reports");
+    expect(await screen.findByText("Reports is being rebuilt")).toBeInTheDocument();
+    expect(screen.getByText("Phase 5")).toBeInTheDocument();
   });
 
   it("sign out clears the session and returns to sign-in", async () => {

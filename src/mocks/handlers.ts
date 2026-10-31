@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { buildMockToken, readMockToken } from "./jwt";
-import { MOCK_CATALOG } from "./fixtures/catalog";
 import { MOCK_USERS } from "./fixtures/users";
+import * as menu from "./menuStore";
 import * as store from "./orderStore";
 
 /**
@@ -34,6 +34,7 @@ const failures = new Map<string, { count: number; resetAt: number }>();
 export const resetMockState = () => {
   failures.clear();
   store.resetOrderStore();
+  menu.resetMenuStore();
 };
 
 /** Runs a store operation; a MockError becomes the backend's AppError body. */
@@ -50,7 +51,7 @@ const readJson = (request: Request): Promise<unknown> => request.json().catch(()
 
 /** parseIdParam(): anything but a positive integer → 404 with the route's not-found code. */
 const routeId = (value: string | readonly string[] | undefined, code: string) => {
-  const id = typeof value === "string" && /^[1-9]d{0,9}$/.test(value) ? Number(value) : null;
+  const id = typeof value === "string" && /^[1-9]\d{0,9}$/.test(value) ? Number(value) : null;
   if (id === null) throw new store.MockError(404, code, "The record was not found.");
   return id;
 };
@@ -63,6 +64,163 @@ const pageSizeOf = (url: URL) => {
   if (!Number.isInteger(size) || size < 1 || size > 200) throw new store.MockError(422, "VALIDATION_ERROR", "The request is invalid.", { errors: [{ field: "pageSize", message: "pageSize must be between 1 and 200" }] });
   return size;
 };
+
+/** D80: changing the menu needs an ADMIN (the stored role, as the backend's requireAdminMiddleware reads it). */
+const authenticateAdmin = (request: Request) => {
+  const auth = authenticate(request);
+  if (auth.error) return auth;
+  if (MOCK_USERS.find((user) => user.id === auth.claims.userId)?.role !== "ADMIN") return { error: HttpResponse.json({ message: "forbidden admin only" }, { status: 403 }) };
+  return auth;
+};
+
+const MONEY = /^\d{1,7}(\.\d{1,3})?$/;
+/** The backend's Yup checks of the menu bodies: required trimmed names, amounts with at most 3 decimals. */
+const checkMenuBody = (body: unknown, rules: { names?: number; price?: boolean; partial?: boolean }) => {
+  const value = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const errors: { field: string; message: string }[] = [];
+  for (const field of rules.names ? ["nameEn", "nameAr"] : []) {
+    const text = value[field];
+    if (text === undefined && rules.partial) continue;
+    if (typeof text !== "string" || !text.trim()) errors.push({ field, message: `${field} is a required field` });
+    else if (text.trim().length > rules.names!) errors.push({ field, message: `${field} must be at most ${rules.names} characters` });
+  }
+  if (rules.price && !(value.price === undefined && rules.partial) && !(typeof value.price === "string" && MONEY.test(value.price.trim()))) {
+    errors.push({ field: "price", message: "must be an amount ≥ 0 with at most 3 decimals" });
+  }
+  if (errors.length) throw new store.MockError(422, "VALIDATION_ERROR", "The request is invalid.", { errors });
+  return value as never;
+};
+
+const listQuery = (request: Request) => {
+  const url = new URL(request.url);
+  const number = (name: string) => (url.searchParams.has(name) ? Number(url.searchParams.get(name)) : undefined);
+  return { categoryId: number("categoryId"), q: url.searchParams.get("q") ?? undefined, page: number("page"), pageSize: number("pageSize") };
+};
+
+/** Menu management (D80): reads for every signed-in user, changes for ADMIN only. */
+const menuHandlers = [
+  http.get("*/api/categories", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return envelope(menu.listCategories(), "Categories fetched.");
+  }),
+  http.post("*/api/categories", async ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.createCategory(checkMenuBody(body, { names: 191 })), "Category created.", 201));
+  }),
+  http.patch("*/api/categories/:id", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.updateCategory(routeId(params.id, "CATEGORY_NOT_FOUND"), checkMenuBody(body, { names: 191, partial: true })), "Category updated."));
+  }),
+  http.post("*/api/categories/:id/archive", ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.archiveCategory(routeId(params.id, "CATEGORY_NOT_FOUND")), "Category deleted."));
+  }),
+
+  http.get("*/api/products", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return envelope(menu.listProducts(listQuery(request)), "Products fetched.");
+  }),
+  http.post("*/api/products", async ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.createProduct(checkMenuBody(body, { names: 191 })), "Product created.", 201));
+  }),
+  http.get("*/api/products/:id", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.getProduct(routeId(params.id, "PRODUCT_NOT_FOUND")), "Product fetched."));
+  }),
+  http.patch("*/api/products/:id", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.updateProduct(routeId(params.id, "PRODUCT_NOT_FOUND"), checkMenuBody(body, { names: 191, partial: true })), "Product updated."));
+  }),
+  http.post("*/api/products/:id/archive", ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.archiveProduct(routeId(params.id, "PRODUCT_NOT_FOUND")), "Product archived."));
+  }),
+  http.get("*/api/products/:id/variants", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.listVariants(routeId(params.id, "PRODUCT_NOT_FOUND")), "Variants fetched."));
+  }),
+  http.post("*/api/products/:id/variants", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.createVariant(routeId(params.id, "PRODUCT_NOT_FOUND"), checkMenuBody(body, { price: true })), "Variant created.", 201));
+  }),
+  http.patch("*/api/products/:id/variants/:variantId", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() =>
+      envelope(menu.updateVariant(routeId(params.id, "PRODUCT_NOT_FOUND"), routeId(params.variantId, "VARIANT_NOT_FOUND"), checkMenuBody(body, { price: true, partial: true })), "Variant updated.")
+    );
+  }),
+  http.post("*/api/products/:id/variants/:variantId/archive", ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.archiveVariant(routeId(params.id, "PRODUCT_NOT_FOUND"), routeId(params.variantId, "VARIANT_NOT_FOUND")), "Variant archived."));
+  }),
+  http.put("*/api/products/:id/add-ons/:addOnId", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() =>
+      envelope(menu.setProductAddOn(routeId(params.id, "PRODUCT_NOT_FOUND"), routeId(params.addOnId, "ADDON_NOT_FOUND"), checkMenuBody(body, { price: true })), "Product add-on saved.")
+    );
+  }),
+
+  http.get("*/api/add-ons", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return envelope(menu.listAddOns(listQuery(request)), "Add-ons fetched.");
+  }),
+  http.post("*/api/add-ons", async ({ request }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.createAddOn(checkMenuBody(body, { names: 100 })), "Add-on created.", 201));
+  }),
+  http.get("*/api/add-ons/:id", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.getAddOn(routeId(params.id, "ADDON_NOT_FOUND")), "Add-on fetched."));
+  }),
+  http.patch("*/api/add-ons/:id", async ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(menu.updateAddOn(routeId(params.id, "ADDON_NOT_FOUND"), checkMenuBody(body, { names: 100, partial: true })), "Add-on updated."));
+  }),
+  http.post("*/api/add-ons/:id/archive", ({ request, params }) => {
+    const auth = authenticateAdmin(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(menu.archiveAddOn(routeId(params.id, "ADDON_NOT_FOUND")), "Add-on deleted."));
+  }),
+
+  http.get("*/api/units", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return envelope(menu.listUnits(), "Units fetched.");
+  }),
+  http.get("*/api/option-groups", ({ request }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return envelope(menu.listOptionGroups(), "Option groups fetched.");
+  }),
+];
 
 export const handlers = [
   http.post("*/api/auth/login", async ({ request }) => {
@@ -107,8 +265,10 @@ export const handlers = [
   http.get("*/api/catalog", ({ request }) => {
     const auth = authenticate(request);
     if (auth.error) return auth.error;
-    return envelope(MOCK_CATALOG, "Catalog fetched.");
+    return envelope(menu.getMenu(), "Catalog fetched.");
   }),
+
+  ...menuHandlers,
 
   http.post("*/api/orders/quote", async ({ request }) => {
     const auth = authenticate(request);
@@ -177,7 +337,8 @@ export const handlers = [
     const auth = authenticate(request);
     if (auth.error) return auth.error;
     const url = new URL(request.url);
-    return attempt(() => envelope(store.searchCustomers(url.searchParams.get("q"), pageSizeOf(url)), "Customers fetched."));
+    const page = Number(url.searchParams.get("page") ?? 1);
+    return attempt(() => envelope(store.searchCustomers(url.searchParams.get("q"), pageSizeOf(url), Number.isInteger(page) && page > 0 ? page : 1), "Customers fetched."));
   }),
 
   http.post("*/api/customers", async ({ request }) => {
@@ -191,5 +352,18 @@ export const handlers = [
     const auth = authenticate(request);
     if (auth.error) return auth.error;
     return attempt(() => envelope(store.findCustomer(routeId(params.id, "CUSTOMER_NOT_FOUND")), "Customer fetched."));
+  }),
+
+  http.patch("*/api/customers/:id", async ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(store.updateCustomer(routeId(params.id, "CUSTOMER_NOT_FOUND"), store.validateCustomerUpdate(body)), "Customer updated."));
+  }),
+
+  http.delete("*/api/customers/:id", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(store.deleteCustomer(routeId(params.id, "CUSTOMER_NOT_FOUND")), "Customer deleted."));
   }),
 ];
