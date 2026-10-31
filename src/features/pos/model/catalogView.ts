@@ -94,6 +94,10 @@ export const indexCatalog = (categories: CatalogCategory[]): CatalogIndex => {
   return index;
 };
 
+/** `next` plus what only `previous` had: names of products the reloaded menu no longer sells (display only). */
+export const mergeIndex = (previous: CatalogIndex | null, next: CatalogIndex): CatalogIndex =>
+  previous ? { products: new Map([...previous.products, ...next.products]), variants: new Map([...previous.variants, ...next.variants]) } : next;
+
 /** The add-ons of a product with these ids, in the catalog's order. */
 export const selectedAddOns = (product: CatalogProduct, addOnIds: number[]): ProductAddOn[] =>
   product.addOns.filter((addOn) => addOnIds.includes(addOn.addOnId));

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Group, Text } from "@mantine/core";
 import { useHotkeys } from "@mantine/hooks";
 import { modals } from "@mantine/modals";
@@ -14,9 +14,10 @@ import { LoadingState } from "@/components/feedback/LoadingState";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { useSession } from "@/features/auth/sessionContext";
 import { canAddLines, itemCount, newLineKey, type LineConfig } from "./model/cart";
-import { indexCatalog } from "./model/catalogView";
-import { buildCreateOrderRequest, buildQuoteRequest, draftProblems } from "./model/orderDraft";
-import { useCatalog, usePosQuote } from "./hooks/queries";
+import { indexCatalog, mergeIndex, type CatalogIndex } from "./model/catalogView";
+import { buildCreateOrderRequest, draftProblems, pricingAdjustments, type CheckoutProblem } from "./model/orderDraft";
+import { priceCart, totalAmount } from "./model/pricing";
+import { useCatalog } from "./hooks/queries";
 import { usePosDraft } from "./state/posDraftContext";
 import { CartPanel } from "./components/CartPanel";
 import { PaymentModal, type PaymentRecovery } from "./components/PaymentModal";
@@ -41,10 +42,21 @@ const PosPage = () => {
 
   const catalog = useCatalog();
   const index = useMemo(() => (catalog.data ? indexCatalog(catalog.data) : null), [catalog.data]);
-  const problems = useMemo(() => draftProblems(draft), [draft]);
-  const quoteRequest = useMemo(() => buildQuoteRequest(lines, draft), [lines, draft]);
-  const quote = usePosQuote(quoteRequest);
-  const canCheckout = lines.length > 0 && problems.length === 0 && quote.status === "current";
+  // Names of everything the menu offered this session, so a line the reloaded menu no longer sells still shows
+  // what it is. Prices always come from the current menu (`index`).
+  const [names, setNames] = useState<CatalogIndex | null>(null);
+  useEffect(() => {
+    if (index) setNames((previous) => mergeIndex(previous, index));
+  }, [index]);
+  // Every amount is computed here from the catalog, at once and without a request (model/pricing.ts). The
+  // backend prices the order again at checkout and refuses a different total (PRICE_MISMATCH, D77).
+  const pricing = useMemo(() => (index ? priceCart(index, lines, pricingAdjustments(draft)) : null), [index, lines, draft]);
+  const problems = useMemo<CheckoutProblem[]>(
+    () => [...(pricing && !pricing.complete ? (["itemUnavailable"] as const) : []), ...draftProblems(draft)],
+    [pricing, draft]
+  );
+  const total = pricing?.complete ? totalAmount(pricing) : null;
+  const canCheckout = lines.length > 0 && problems.length === 0 && total !== null;
 
   const searchRef = useRef<HTMLInputElement>(null);
   useHotkeys([["/", () => searchRef.current?.focus()]]);
@@ -124,21 +136,29 @@ const PosPage = () => {
   };
 
   const confirmPayment = async (method: PaymentMethod, receivedFils: number | null) => {
-    if (inFlight.current || quote.status !== "current") return;
+    if (inFlight.current || !canCheckout || total === null) return;
     inFlight.current = true;
     setRecovery(null);
     try {
-      const order = await creation.mutateAsync(buildCreateOrderRequest(lines, draft, method));
+      const order = await creation.mutateAsync(buildCreateOrderRequest(lines, draft, method, total));
       setPaymentOpen(false);
       setSheetOpen(false);
       setCompleted({ order, receivedFils });
     } catch (error) {
       const apiError = toApiError(error);
-      if (apiError.kind === "network" || apiError.kind === "timeout") await checkRecentOrders();
+      // A price changed since the catalog was loaded: nothing was created. Reload the catalog so every amount
+      // shows the current price; the cashier checks the new total and confirms again (never retried here).
+      if (apiError.code === "PRICE_MISMATCH") await queryClient.invalidateQueries({ queryKey: ["catalog"] });
+      else if (apiError.kind === "network" || apiError.kind === "timeout") await checkRecentOrders();
     } finally {
       inFlight.current = false;
     }
   };
+
+  // The menu was reloaded and an item can no longer be priced: close the payment (the cart shows why).
+  useEffect(() => {
+    if (paymentOpen && total === null && !creation.isPending) setPaymentOpen(false);
+  }, [paymentOpen, total, creation.isPending]);
 
   const pickRecovered = async (orderId: number) => {
     const order = await queryClient.fetchQuery({ queryKey: ["orders", orderId], queryFn: ({ signal }) => getOrder(orderId, signal) });
@@ -171,8 +191,8 @@ const PosPage = () => {
         <ProductBrowser categories={catalog.data} onSelect={openProduct} searchRef={searchRef} />
         <CartPanel
           lines={lines}
-          index={index}
-          quote={quote}
+          index={names ?? index}
+          pricing={pricing}
           draft={draft}
           problems={problems}
           canCheckout={canCheckout}
@@ -194,7 +214,7 @@ const PosPage = () => {
               <Text size="sm" fw={700}>
                 {t("pos.cart.items", { count })}
               </Text>
-              {quote.status === "current" ? <CurrencyText value={quote.quote.totalAmount} size="sm" /> : null}
+              {total ? <CurrencyText value={total} size="sm" /> : null}
             </div>
           </Group>
           <Button size="action" onClick={() => setSheetOpen(true)}>
@@ -206,7 +226,7 @@ const PosPage = () => {
       <ProductModal target={editor} onSubmit={submitConfigs} onClose={() => setEditor(null)} />
       <PaymentModal
         opened={paymentOpen}
-        quote={quote.status === "current" ? quote.quote : null}
+        total={total}
         draft={draft}
         itemCount={count}
         submitting={creation.isPending}

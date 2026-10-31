@@ -3,13 +3,13 @@ import { Alert, Button, Divider, Group, Loader, Modal, Radio, Stack, Text } from
 import { IconAlertTriangle, IconBuildingBank, IconCash, IconCreditCard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { ApiError } from "@/api/errors";
-import type { OrderListItem, OrderQuote, PaymentMethod } from "@/api/v2/orders";
+import type { OrderListItem, PaymentMethod } from "@/api/v2/orders";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { formatMoney, fromFils, toFils } from "@/lib/money";
 import type { OrderDraft } from "../model/orderDraft";
 import { cashState, quickCashAmounts } from "../model/payment";
 import { DecimalInput } from "./DecimalInput";
-import { quoteErrorKey } from "./quoteErrors";
+import { mismatchTotal, orderErrorKey } from "./orderErrors";
 import classes from "../Pos.module.css";
 
 const METHODS: { value: PaymentMethod; icon: typeof IconCash }[] = [
@@ -25,7 +25,8 @@ export interface PaymentRecovery {
 }
 
 interface PaymentFormProps {
-  quote: OrderQuote;
+  /** Amount to pay (local pricing of the cart), e.g. "19.500". */
+  total: string;
   draft: OrderDraft;
   itemCount: number;
   submitting: boolean;
@@ -36,11 +37,13 @@ interface PaymentFormProps {
   onBack: () => void;
 }
 
-const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onConfirm, onPickRecovered, onBack }: PaymentFormProps) => {
+const PaymentForm = ({ total, draft, itemCount, submitting, error, recovery, onConfirm, onPickRecovered, onBack }: PaymentFormProps) => {
   const { t, i18n } = useTranslation();
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [received, setReceived] = useState("");
-  const dueFils = toFils(quote.totalAmount);
+  const dueFils = toFils(total);
+  // PRICE_MISMATCH (D77): the backend's total for this order; the amount above follows once the catalog is reloaded.
+  const correctedTotal = error ? mismatchTotal(error) : null;
   const cash = cashState(dueFils, received);
   const canConfirm = !submitting && (method !== "CASH" || cash.sufficient);
   const time = (iso: string) => new Intl.DateTimeFormat(i18n.language === "ar" ? "ar-JO-u-nu-latn" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Amman" }).format(new Date(iso));
@@ -78,7 +81,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
           <Divider my={4} />
           <Group justify="space-between" align="baseline">
             <Text fw={700}>{t("pos.payment.total")}</Text>
-            <CurrencyText value={quote.totalAmount} fw={800} fz={28} className={classes.money} />
+            <CurrencyText value={total} fw={800} fz={28} className={classes.money} />
           </Group>
         </Stack>
 
@@ -118,7 +121,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
             </Group>
             <Group justify="space-between">
               <Text size="sm" c="dimmed">{t("pos.payment.due")}</Text>
-              <CurrencyText value={quote.totalAmount} size="sm" className={classes.money} />
+              <CurrencyText value={total} size="sm" className={classes.money} />
             </Group>
             {cash.changeFils !== null ? (
               <Group justify="space-between">
@@ -135,7 +138,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
 
         {error && !recovery ? (
           <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />} role="alert">
-            {t(quoteErrorKey(error))}
+            {correctedTotal ? t("pos.errors.PRICE_MISMATCH_TOTAL", { total: `${formatMoney(correctedTotal)} ${t("currency.jod")}` }) : t(orderErrorKey(error))}
             {error.requestId ? <Text size="xs" mt={4}>{t("errors.reference", { id: error.requestId })}</Text> : null}
           </Alert>
         ) : null}
@@ -179,7 +182,7 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
               t("pos.payment.saving")
             ) : (
               <span>
-                {t("pos.payment.confirm")} · <CurrencyText value={quote.totalAmount} inherit />
+                {t("pos.payment.confirm")} · <CurrencyText value={total} inherit />
               </span>
             )}
           </Button>
@@ -189,17 +192,18 @@ const PaymentForm = ({ quote, draft, itemCount, submitting, error, recovery, onC
   );
 };
 
-interface PaymentModalProps extends Omit<PaymentFormProps, "quote" | "onBack"> {
+interface PaymentModalProps extends Omit<PaymentFormProps, "total" | "onBack"> {
   opened: boolean;
-  quote: OrderQuote | null;
+  /** Null while the cart cannot be priced (the dialog stays closed). */
+  total: string | null;
   onClose: () => void;
 }
 
-export const PaymentModal = ({ opened, quote, submitting, onClose, ...form }: PaymentModalProps) => {
+export const PaymentModal = ({ opened, total, submitting, onClose, ...form }: PaymentModalProps) => {
   const { t } = useTranslation();
   return (
     <Modal
-      opened={opened && quote !== null}
+      opened={opened && total !== null}
       onClose={onClose}
       centered
       size="md"
@@ -210,7 +214,7 @@ export const PaymentModal = ({ opened, quote, submitting, onClose, ...form }: Pa
       closeOnClickOutside={!submitting}
       withCloseButton={!submitting}
     >
-      {opened && quote ? <PaymentForm quote={quote} submitting={submitting} onBack={onClose} {...form} /> : null}
+      {opened && total ? <PaymentForm total={total} submitting={submitting} onBack={onClose} {...form} /> : null}
     </Modal>
   );
 };

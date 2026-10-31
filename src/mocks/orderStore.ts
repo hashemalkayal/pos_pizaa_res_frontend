@@ -93,6 +93,7 @@ interface CreateBody extends QuoteBody {
   paymentMethod: PaymentMethod;
   customerId?: number | null;
   customer?: { name: string; phone: string } | null;
+  expectedTotal?: string | null;
 }
 
 const validateQuoteFields = (body: Record<string, unknown>, check: Validator) => {
@@ -152,13 +153,16 @@ const validateCustomerFields = (customer: Record<string, unknown>, check: Valida
 export const validateCreate = (body: unknown): CreateBody => {
   const check = new Validator();
   const value = isRecord(body) ? body : {};
-  check.keys(value, ["items", "customerId", "customer", "paymentMethod", "delivery", "discountPercent"]);
+  check.keys(value, ["items", "customerId", "customer", "paymentMethod", "delivery", "discountPercent", "expectedTotal"]);
   validateQuoteFields(value, check);
   if (!PAYMENT_METHODS.includes(value.paymentMethod as PaymentMethod)) check.fail("paymentMethod", "paymentMethod must be one of the following values: CASH, VISA, CLIQ");
   if (!isAbsent(value.customerId) && !isId(value.customerId)) check.fail("customerId", "customerId must be a positive number");
   if (!isAbsent(value.customer)) {
     if (isRecord(value.customer)) validateCustomerFields(value.customer, check, "customer");
     else check.fail("customer", "customer must be a `object` type");
+  }
+  if (!isAbsent(value.expectedTotal) && !(typeof value.expectedTotal === "string" && MONEY.test(value.expectedTotal.trim()))) {
+    check.fail("expectedTotal", "must be an amount ≥ 0 with at most 3 decimals");
   }
   if (value.customerId && value.customer) check.fail("", "send either customerId or customer, not both");
   check.throwIfInvalid();
@@ -285,9 +289,18 @@ export const createCustomer = (input: { name: string; phone: string }) => {
   return publicCustomer(insertCustomer(input.name, input.phone));
 };
 
-/** POS order by `creator`: priced, numbered per business date and "printed" (the mocks print nothing). */
+/**
+ * POS order by `creator`: priced, numbered per business date and "printed" (the mocks print nothing). A different
+ * `expectedTotal` → 409 PRICE_MISMATCH with the current pricing, before anything is written (D77).
+ */
 export const createOrder = (body: CreateBody, creator: { id: number; name: string | null }): Order => {
   const priced = quote(body);
+  if (!isAbsent(body.expectedTotal) && fils(String(body.expectedTotal).trim()) !== fils(priced.totalAmount)) {
+    throw new MockError(409, "PRICE_MISMATCH", "The order total has changed. Check the new total and confirm again.", {
+      expectedTotal: money(fils(String(body.expectedTotal).trim())),
+      pricing: priced,
+    });
+  }
   let customer: Customer | null = null;
   if (body.customerId) {
     customer = customers.find((candidate) => candidate.id === body.customerId) ?? null;

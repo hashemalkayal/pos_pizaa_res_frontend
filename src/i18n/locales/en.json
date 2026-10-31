@@ -154,7 +154,8 @@
       "details": "Order details",
       "checkout": "Checkout",
       "mobileOpen": "Review order",
-      "mobileClose": "Back to the menu"
+      "mobileClose": "Back to the menu",
+      "unavailable": "Unavailable"
     },
     "service": {
       "label": "Order type",
@@ -201,17 +202,15 @@
       "subtotal": "Items subtotal",
       "discount": "Discount ({{percent}}%)",
       "delivery": "Delivery fee",
-      "total": "Total",
-      "updating": "Updating prices…",
-      "error": "Prices could not be calculated.",
-      "retry": "Try again"
+      "total": "Total"
     },
     "problems": {
       "deliveryLocationRequired": "Enter the delivery address.",
       "deliveryFeeRequired": "Enter the delivery fee (0 if free).",
       "deliveryFeeInvalid": "The delivery fee must be an amount with at most 3 decimals.",
       "deliveryTimeInvalid": "Complete the delivery time or clear it.",
-      "discountInvalid": "The discount must be 0–100% with at most 2 decimals."
+      "discountInvalid": "The discount must be 0–100% with at most 2 decimals.",
+      "itemUnavailable": "An item is no longer on the menu. Remove it to continue."
     },
     "payment": {
       "title": "Payment",
@@ -257,7 +256,9 @@
       "ADDON_NOT_AVAILABLE": "An add-on is no longer available for one of the items. Edit the item and try again.",
       "VARIANT_NOT_FOUND": "One of the items is no longer on the menu. Remove it and try again.",
       "VARIANT_UNAVAILABLE": "One of the items is not available right now. Remove it and try again.",
-      "CUSTOMER_NOT_FOUND": "The selected customer no longer exists. Choose the customer again."
+      "CUSTOMER_NOT_FOUND": "The selected customer no longer exists. Choose the customer again.",
+      "PRICE_MISMATCH": "Prices changed since the menu was loaded. Check the new total and confirm again.",
+      "PRICE_MISMATCH_TOTAL": "Prices changed since the menu was loaded. The total is now {{total}}. Check it with the customer and confirm again."
     }
   },
   "order": {

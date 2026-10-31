@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CatalogProduct } from "@/api/v2/catalog";
 import type { Customer } from "@/api/v2/customers";
-import type { OrderLine } from "@/api/v2/orders";
 import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
-import { canAddLine, canAddLines, cartReducer, itemCount, MAX_LINES, quoteLineFor, type CartLine, type LineConfig } from "./cart";
+import { canAddLine, canAddLines, cartReducer, itemCount, MAX_LINES, type CartLine, type LineConfig } from "./cart";
 import { doughTabs, labelWithoutDough, matchesSearch, normalizeSearch, sellableVariants, startingPrice, variantForDough } from "./catalogView";
 import { formatDeliveryTime, isTimePickerValue } from "./deliveryTime";
-import { buildCreateOrderRequest, buildQuoteRequest, draftProblems, EMPTY_DRAFT, quoteKey, type OrderDraft } from "./orderDraft";
+import { buildCreateOrderRequest, draftProblems, EMPTY_DRAFT, pricingAdjustments, type OrderDraft } from "./orderDraft";
 import { cashState, quickCashAmounts } from "./payment";
 
 const config = (overrides: Partial<LineConfig> = {}): LineConfig => ({ productId: 1, variantId: 101, addOnIds: [], quantity: 1, comment: null, ...overrides });
@@ -95,16 +94,6 @@ describe("cart", () => {
     expect(canAddLines(lines, [config({ comment: "new" }), config({ comment: "other" })])).toBe(false);
     expect(canAddLines(lines, [config({ comment: "note 1" }), config({ comment: "new" })])).toBe(true);
   });
-
-  it("quoteLineFor: a quote line counts only for exactly the same configuration", () => {
-    const line = config({ addOnIds: [1, 3], quantity: 2, comment: "well done" });
-    const priced = { variantId: 101, quantity: 2, comment: "well done", addOns: [{ addOnId: 3 }, { addOnId: 1 }], lineTotal: "12.000" } as unknown as OrderLine;
-    expect(quoteLineFor(line, priced)?.lineTotal).toBe("12.000");
-    expect(quoteLineFor({ ...line, quantity: 3 }, priced)).toBeUndefined();
-    expect(quoteLineFor({ ...line, addOnIds: [1] }, priced)).toBeUndefined();
-    expect(quoteLineFor({ ...line, comment: null }, priced)).toBeUndefined();
-    expect(quoteLineFor(line, undefined)).toBeUndefined();
-  });
 });
 
 describe("delivery time (TimePicker → the text printed on the receipt)", () => {
@@ -137,37 +126,39 @@ describe("order draft → backend requests", () => {
   const customer: Customer = { id: 7, name: "Mock Customer", phone: "0790000001", createdAt: "2026-10-01T09:00:00.000Z" };
   const delivery: OrderDraft = { ...EMPTY_DRAFT, serviceType: "DELIVERY", delivery: { location: "  Building 5, Street 9 ", time: "19:30", timeIncomplete: false, fee: "1.500" } };
 
-  it("items carry the variant, quantity, add-ons and note only (never a price)", () => {
-    expect(buildQuoteRequest(lines, EMPTY_DRAFT)).toEqual({
+  it("items carry the variant, quantity, add-ons and note only; the total shown is sent as expectedTotal (never a price)", () => {
+    expect(buildCreateOrderRequest(lines, EMPTY_DRAFT, "CASH", "12.500")).toEqual({
       items: [
         { variantId: 101, quantity: 2, addOnIds: [1, 2], comment: "well done" },
         { variantId: 99, quantity: 1 },
       ],
+      paymentMethod: "CASH",
+      expectedTotal: "12.500",
     });
-    expect(buildQuoteRequest([], EMPTY_DRAFT)).toBeNull();
   });
 
-  it("dine-in never sends delivery values, even when they were typed before switching", () => {
+  it("dine-in never sends or prices delivery values, even when they were typed before switching", () => {
     const dineIn = { ...delivery, serviceType: "DINE_IN" as const };
     expect(draftProblems(dineIn)).toEqual([]);
-    expect(buildQuoteRequest(lines, dineIn)).not.toHaveProperty("delivery");
-    expect(buildCreateOrderRequest(lines, dineIn, "CASH")).not.toHaveProperty("delivery");
+    expect(pricingAdjustments(dineIn)).toEqual({});
+    expect(buildCreateOrderRequest(lines, dineIn, "CASH", "1.000")).not.toHaveProperty("delivery");
   });
 
   it("delivery: address, printed time and the typed fee", () => {
-    expect(buildQuoteRequest(lines, delivery)?.delivery).toEqual({ price: "1.500" });
-    expect(buildCreateOrderRequest(lines, delivery, "VISA")).toEqual({
+    expect(pricingAdjustments(delivery)).toEqual({ deliveryPrice: "1.500" });
+    expect(buildCreateOrderRequest(lines, delivery, "VISA", "2.500")).toEqual({
       items: expect.any(Array),
       paymentMethod: "VISA",
       delivery: { location: "Building 5, Street 9", time: "7:30 PM", price: "1.500" },
+      expectedTotal: "2.500",
     });
-    expect(buildCreateOrderRequest(lines, { ...delivery, delivery: { ...delivery.delivery, time: "" } }, "CASH").delivery?.time).toBeNull();
+    expect(buildCreateOrderRequest(lines, { ...delivery, delivery: { ...delivery.delivery, time: "" } }, "CASH", "2.500").delivery?.time).toBeNull();
   });
 
   it("a zero delivery fee is a valid fee", () => {
     const free = { ...delivery, delivery: { ...delivery.delivery, fee: "0" } };
     expect(draftProblems(free)).toEqual([]);
-    expect(buildCreateOrderRequest(lines, free, "CASH").delivery?.price).toBe("0");
+    expect(buildCreateOrderRequest(lines, free, "CASH", "1.000").delivery?.price).toBe("0");
   });
 
   it("delivery needs an address and a fee; a bad fee or time blocks checkout", () => {
@@ -179,30 +170,23 @@ describe("order draft → backend requests", () => {
     // A partly typed time (e.g. 7:30 without AM/PM) is never dropped silently.
     expect(draftProblems({ ...delivery, delivery: { ...delivery.delivery, time: "", timeIncomplete: true } })).toEqual(["deliveryTimeInvalid"]);
     expect(draftProblems({ ...delivery, serviceType: "DINE_IN", delivery: { ...delivery.delivery, time: "", timeIncomplete: true } })).toEqual([]);
-    expect(buildQuoteRequest(lines, { ...delivery, delivery: { ...delivery.delivery, fee: "1.5555" } })).not.toHaveProperty("delivery");
+    expect(pricingAdjustments({ ...delivery, delivery: { ...delivery.delivery, fee: "1.5555" } })).toEqual({});
   });
 
-  it("discount: a percentage only, sent when valid and above zero", () => {
-    expect(buildQuoteRequest(lines, { ...EMPTY_DRAFT, discountPercent: "12.5" })?.discountPercent).toBe("12.5");
-    expect(buildQuoteRequest(lines, { ...EMPTY_DRAFT, discountPercent: "0" })).not.toHaveProperty("discountPercent");
-    expect(buildQuoteRequest(lines, { ...EMPTY_DRAFT, discountPercent: "100" })?.discountPercent).toBe("100");
+  it("discount: a percentage only, priced and sent when valid and above zero", () => {
+    expect(pricingAdjustments({ ...EMPTY_DRAFT, discountPercent: "12.5" })).toEqual({ discountPercent: "12.5" });
+    expect(pricingAdjustments({ ...EMPTY_DRAFT, discountPercent: "0" })).toEqual({});
+    expect(pricingAdjustments({ ...EMPTY_DRAFT, discountPercent: "100" })).toEqual({ discountPercent: "100" });
+    expect(buildCreateOrderRequest(lines, { ...EMPTY_DRAFT, discountPercent: "12.5" }, "CASH", "1.000").discountPercent).toBe("12.5");
     expect(draftProblems({ ...EMPTY_DRAFT, discountPercent: "101" })).toEqual(["discountInvalid"]);
     expect(draftProblems({ ...EMPTY_DRAFT, discountPercent: "10.555" })).toEqual(["discountInvalid"]);
-    expect(buildQuoteRequest(lines, { ...EMPTY_DRAFT, discountPercent: "101" })).not.toHaveProperty("discountPercent");
+    expect(pricingAdjustments({ ...EMPTY_DRAFT, discountPercent: "101" })).toEqual({});
   });
 
   it("the customer is optional and sent by id", () => {
-    expect(buildCreateOrderRequest(lines, EMPTY_DRAFT, "CASH")).not.toHaveProperty("customerId");
-    expect(buildCreateOrderRequest(lines, { ...EMPTY_DRAFT, customer }, "CLIQ")).toMatchObject({ customerId: 7, paymentMethod: "CLIQ" });
-    expect(buildCreateOrderRequest(lines, { ...EMPTY_DRAFT, customer }, "CLIQ")).not.toHaveProperty("customer");
-  });
-
-  it("the quote key changes with anything that changes the price", () => {
-    const base = quoteKey(buildQuoteRequest(lines, EMPTY_DRAFT));
-    expect(quoteKey(buildQuoteRequest(lines, { ...EMPTY_DRAFT, discountPercent: "5" }))).not.toBe(base);
-    expect(quoteKey(buildQuoteRequest([{ ...lines[0], quantity: 3 }, lines[1]], EMPTY_DRAFT))).not.toBe(base);
-    expect(quoteKey(buildQuoteRequest(lines, { ...EMPTY_DRAFT, customer }))).toBe(base);
-    expect(quoteKey(null)).toBeNull();
+    expect(buildCreateOrderRequest(lines, EMPTY_DRAFT, "CASH", "1.000")).not.toHaveProperty("customerId");
+    expect(buildCreateOrderRequest(lines, { ...EMPTY_DRAFT, customer }, "CLIQ", "1.000")).toMatchObject({ customerId: 7, paymentMethod: "CLIQ" });
+    expect(buildCreateOrderRequest(lines, { ...EMPTY_DRAFT, customer }, "CLIQ", "1.000")).not.toHaveProperty("customer");
   });
 });
 

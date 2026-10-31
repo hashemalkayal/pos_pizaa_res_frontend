@@ -1,13 +1,13 @@
 import { useId, useMemo, useRef, useState } from "react";
-import { ActionIcon, Badge, Button, Checkbox, Divider, Group, Modal, Radio, Skeleton, Stack, Tabs, Text, Textarea } from "@mantine/core";
+import { ActionIcon, Badge, Button, Checkbox, Divider, Group, Modal, Radio, Stack, Tabs, Text, Textarea } from "@mantine/core";
 import { IconNote, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CatalogProduct, CatalogVariant } from "@/api/v2/catalog";
 import { CurrencyText } from "@/components/money/CurrencyText";
-import { cartReducer, MAX_COMMENT_LENGTH, newLineKey, normalizeConfig, quoteLineFor, type CartLine, type LineConfig } from "../model/cart";
+import { fromFils } from "@/lib/money";
+import { cartReducer, MAX_COMMENT_LENGTH, newLineKey, normalizeConfig, type CartLine, type LineConfig } from "../model/cart";
 import { defaultVariant, doughTabs, labelWithoutDough, selectedAddOns, sellableVariants, variantForDough } from "../model/catalogView";
-import { lineInputs } from "../model/orderDraft";
-import { usePosQuote } from "../hooks/queries";
+import { orderTotals, priceLine, type LinePrice } from "../model/pricing";
 import { useLocalized } from "../hooks/useLocalized";
 import { QuantityStepper } from "./QuantityStepper";
 import classes from "../Pos.module.css";
@@ -50,16 +50,15 @@ const VariantCards = ({ variants, value, onChange, label, labelOf, compact = fal
 interface StagedRowProps {
   line: CartLine;
   product: CatalogProduct;
-  /** Backend line total; null while it is not known for this exact configuration. */
-  lineTotal: string | null;
-  stale: boolean;
+  /** Local price of this configuration (null only if the catalog does not sell it). */
+  price: LinePrice | null;
   onEdit: (key: string) => void;
   onRemove: (key: string) => void;
   onQuantity: (key: string, quantity: number) => void;
 }
 
-/** One configuration waiting in the dialog: dough and size, add-ons, note, quantity and backend price. */
-const StagedRow = ({ line, product, lineTotal, stale, onEdit, onRemove, onQuantity }: StagedRowProps) => {
+/** One configuration waiting in the dialog: dough and size, add-ons, note, quantity and price. */
+const StagedRow = ({ line, product, price, onEdit, onRemove, onQuantity }: StagedRowProps) => {
   const { t } = useTranslation();
   const { name, pick } = useLocalized();
   const variant = product.variants.find((candidate) => candidate.id === line.variantId);
@@ -88,10 +87,12 @@ const StagedRow = ({ line, product, lineTotal, stale, onEdit, onRemove, onQuanti
           increaseLabel={t("pos.cart.increase", { name: label })}
           valueLabel={t("pos.cart.quantityOf", { quantity: line.quantity, name: label })}
         />
-        {lineTotal ? (
-          <CurrencyText value={lineTotal} size="sm" fw={700} className={`${classes.money} ${stale ? classes.summaryStale : ""}`} />
+        {price ? (
+          <CurrencyText value={fromFils(price.lineTotalFils)} size="sm" fw={700} className={classes.money} />
         ) : (
-          <Skeleton height={14} width={64} radius="sm" />
+          <Text size="sm" fw={700}>
+            —
+          </Text>
         )}
         <ActionIcon size="action" variant="subtle" color="charcoal" onClick={() => onEdit(line.key)} aria-label={t("pos.cart.edit", { name: label })}>
           <IconPencil size={17} />
@@ -128,8 +129,8 @@ interface ProductEditorProps {
  *
  * Several configurations can be added in one go: "Add another configuration" keeps the current one in the dialog
  * (identical ones merge) and resets the form with nothing selected, so only what is chosen is ever added. "Add all
- * to order" adds the kept configurations plus the current one, if chosen, to the cart in one update. Totals come
- * from the backend quote of exactly those configurations. When editing a cart line, only that line is changed.
+ * to order" adds the kept configurations plus the current one, if chosen, to the cart in one update. The total
+ * covers exactly those configurations. When editing a cart line, only that line is changed.
  */
 const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
   const { t } = useTranslation();
@@ -159,8 +160,9 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
     variant && !form.pristine ? normalizeConfig({ productId: product.id, variantId: variant.id, addOnIds: form.addOnIds, quantity: form.quantity, comment: form.comment }) : null;
   const configs: LineConfig[] = [...staged.map(configOf), ...(active ? [active] : [])];
 
-  const quote = usePosQuote(configs.length ? { items: lineInputs(configs) } : null);
-  const shownQuote = quote.status === "current" || quote.status === "updating" ? quote.quote : null;
+  // Local pricing, updated at once: this product's variant and add-on prices from the catalog.
+  const prices = configs.map((config) => priceLine(product, config));
+  const totals = orderTotals(prices.map((price) => price?.lineTotalFils ?? 0));
 
   // The tab follows the selected variant, so the selection is always one of the shown sizes.
   const fallbackVariantId = defaultVariant(product)?.id;
@@ -224,8 +226,7 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
                     key={stagedLine.key}
                     line={stagedLine}
                     product={product}
-                    lineTotal={quoteLineFor(stagedLine, shownQuote?.items[position])?.lineTotal ?? null}
-                    stale={quote.status !== "current"}
+                    price={prices[position] ?? null}
                     onEdit={editStaged}
                     onRemove={(key) => setStaged((current) => cartReducer(current, { type: "remove", key }))}
                     onQuantity={(key, quantity) => setStaged((current) => cartReducer(current, { type: "setQuantity", key, quantity }))}
@@ -340,14 +341,8 @@ const ProductEditor = ({ target, onSubmit, onCancel }: ProductEditorProps) => {
             <Text size="xs" c="dimmed" fw={600}>
               {totalLabel}
             </Text>
-            {shownQuote ? (
-              <CurrencyText value={shownQuote.totalAmount} fw={800} size="xl" className={`${classes.money} ${quote.status === "updating" ? classes.summaryStale : ""}`} />
-            ) : quote.status === "error" ? (
-              <Text size="sm" fw={600} c="red.7">
-                {t("pos.summary.error")}
-              </Text>
-            ) : quote.status === "loading" ? (
-              <Skeleton height={24} width={110} radius="sm" mt={4} />
+            {configs.length ? (
+              <CurrencyText value={fromFils(totals.totalFils)} fw={800} size="xl" className={classes.money} />
             ) : (
               <Text fw={800} size="xl">
                 —

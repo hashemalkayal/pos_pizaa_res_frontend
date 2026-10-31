@@ -1,9 +1,11 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { rem } from "@mantine/core";
-import { describe, expect, it } from "vitest";
-import type { CreateOrderRequest, QuoteRequest } from "@/api/v2/orders";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { CatalogCategory } from "@/api/v2/catalog";
+import type { CreateOrderRequest } from "@/api/v2/orders";
+import { MOCK_CATALOG } from "@/mocks/fixtures/catalog";
 import { appError } from "@/mocks/handlers";
 import * as store from "@/mocks/orderStore";
 import { currentPathname, renderApp, signInAs } from "@/test/renderApp";
@@ -16,6 +18,18 @@ import { ACTION_SIZES } from "@/theme/theme";
  * 1–3 at 1.000; Penne Pesto; Roast Beef folded sandwich 3.000; Soft Drink and Water 0.500.
  */
 
+// The POS prices everything locally: no test may cause a quote request (POST /api/orders/quote).
+let quoteRequests = 0;
+beforeEach(() => {
+  quoteRequests = 0;
+  server.use(
+    http.post("*/api/orders/quote", () => {
+      quoteRequests += 1;
+    })
+  );
+});
+afterEach(() => expect(quoteRequests, "quote requests").toBe(0));
+
 const openPos = async () => {
   signInAs("CASHER");
   renderApp("/pos");
@@ -27,13 +41,13 @@ const cart = () => screen.getByRole("complementary", { name: "Current order" });
 const cartLines = () => within(cart()).queryAllByRole("listitem");
 const checkout = () => within(cart()).getByRole("button", { name: /^Checkout/ });
 const search = () => screen.getByRole("textbox", { name: "Search the menu" });
-/** Waits for the product dialog's single total (footer), priced by the backend quote. */
+/** The product dialog's single total (footer), computed locally from the catalog. */
 const expectDialogTotal = (dialog: HTMLElement, amount: string) =>
   waitFor(() => expect(within(dialog).getByText(/^Total/).nextSibling).toHaveTextContent(`${amount} JOD`));
 /** The amount next to a summary label (the summary is the last occurrence of the label in the cart). */
 const summaryValue = (label: string) => within(cart()).getAllByText(label).at(-1)?.nextSibling;
 
-/** Waits until the backend quote for the current cart is shown (checkout enabled with this total). */
+/** The cart's total on the checkout button (checkout enabled). */
 const expectTotal = async (amount: string) => {
   await waitFor(() => expect(checkout()).toHaveAccessibleName(`Checkout · ${amount} JOD`));
   expect(checkout()).toBeEnabled();
@@ -48,7 +62,7 @@ const addProduct = async (user: UserEvent, name: string, configure?: (dialog: HT
 };
 
 /** Records the JSON bodies sent to a POST route, then lets the regular mock handle the request. */
-const recordBodies = <T,>(path: "*/api/orders" | "*/api/orders/quote") => {
+const recordBodies = <T,>(path: "*/api/orders") => {
   const bodies: T[] = [];
   server.use(
     http.post(path, async ({ request }) => {
@@ -102,9 +116,8 @@ describe("POS — menu", () => {
 });
 
 describe("POS — product dialog and cart", () => {
-  it("customizes a product (variant, add-ons, quantity, note) with a preview, and the cart shows the backend price", async () => {
+  it("customizes a product (variant, add-ons, quantity, note) with its total, and the cart shows the line price", async () => {
     const user = await openPos();
-    const quotes = recordBodies<QuoteRequest>("*/api/orders/quote");
     await user.click(screen.getByRole("button", { name: /^Margherita/ }));
     const dialog = await screen.findByRole("dialog", { name: "Margherita" });
 
@@ -122,7 +135,7 @@ describe("POS — product dialog and cart", () => {
     await user.click(within(dialog).getByRole("button", { name: "Increase quantity" }));
     await user.type(within(dialog).getByRole("textbox", { name: "Item notes" }), "  cut in 8  ");
     // One total, no separate price breakdown.
-    await expectDialogTotal(dialog, "12.000"); // (5.000 + 1.000) × 2, from the backend quote
+    await expectDialogTotal(dialog, "12.000"); // (5.000 + 1.000) × 2
     expect(within(dialog).getByText("Total (× 2)")).toBeInTheDocument();
     expect(within(dialog).queryByText("Price")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Add to order" }));
@@ -134,8 +147,6 @@ describe("POS — product dialog and cart", () => {
     expect(line).toHaveTextContent("“cut in 8”");
     expect(line).toHaveTextContent("12.000 JOD");
     expect(within(cart()).getByText("2 items")).toBeInTheDocument();
-    // Only ids, quantities and the note are sent: the backend prices the order.
-    expect(quotes.at(-1)).toEqual({ items: [{ variantId: 102, quantity: 2, addOnIds: [2], comment: "cut in 8" }] });
   });
 
   it("switching dough keeps the size when that dough has it, else picks its first size, and keeps the add-ons", async () => {
@@ -255,9 +266,9 @@ describe("POS — several configurations in one product dialog", () => {
   const addAnother = (dialog: HTMLElement) => within(dialog).getByRole("button", { name: "Add another configuration" });
   const lineMeta = (line: HTMLElement) => line.querySelector("[class*=lineMeta]")?.textContent ?? "";
 
-  it("adds three configurations (doughs, sizes, add-ons, notes, quantities) in one session, priced together by the backend", async () => {
+  it("adds three configurations (doughs, sizes, add-ons, notes, quantities) in one session, with one combined total", async () => {
     const user = await openPos();
-    const quotes = recordBodies<QuoteRequest>("*/api/orders/quote");
+    const created = recordBodies<CreateOrderRequest>("*/api/orders");
     await user.click(screen.getByRole("button", { name: /^Margherita/ }));
     const dialog = await screen.findByRole("dialog", { name: "Margherita" });
 
@@ -288,17 +299,10 @@ describe("POS — several configurations in one product dialog", () => {
     expect(within(dialog).getByRole("radio", { name: /Medium/ })).toBeChecked();
     await user.click(within(dialog).getByRole("checkbox", { name: /Extra Mozzarella/ }));
 
-    // One total for everything, from one quote of the three configurations: 2 × 5.000 + 5.000 + 6.000
+    // One total for the three configurations: 2 × 5.000 + 5.000 + 6.000
     await expectDialogTotal(dialog, "21.000");
     expect(within(dialog).getByText("Total · 3 configurations")).toBeInTheDocument();
-    expect(quotes.at(-1)).toEqual({
-      items: [
-        { variantId: 101, quantity: 2, addOnIds: [3], comment: "well done" },
-        { variantId: 102, quantity: 1 },
-        { variantId: 103, quantity: 1, addOnIds: [2] },
-      ],
-    });
-    await waitFor(() => expect(staged(dialog)[0]).toHaveTextContent("10.000 JOD"));
+    expect(staged(dialog)[0]).toHaveTextContent("10.000 JOD");
     expect(staged(dialog)[1]).toHaveTextContent("5.000 JOD");
 
     await user.click(within(dialog).getByRole("button", { name: "Add all to order" }));
@@ -308,6 +312,22 @@ describe("POS — several configurations in one product dialog", () => {
     expect(cartLines()[0]).toHaveTextContent("“well done”");
     expect(within(cart()).getByText("2 × Margherita")).toBeInTheDocument();
     expect(within(cart()).getByText("4 items")).toBeInTheDocument();
+
+    // The order sends the three lines and the total shown; the backend agrees with it.
+    const payment = await payWith(user, "Visa");
+    await user.click(within(payment).getByRole("button", { name: /^Confirm payment/ }));
+    await screen.findByRole("heading", { name: "Order created" });
+    expect(created).toEqual([
+      {
+        items: [
+          { variantId: 101, quantity: 2, addOnIds: [3], comment: "well done" },
+          { variantId: 102, quantity: 1 },
+          { variantId: 103, quantity: 1, addOnIds: [2] },
+        ],
+        paymentMethod: "VISA",
+        expectedTotal: "21.000",
+      },
+    ]);
   });
 
   it("staged configurations can be re-counted, removed and edited; identical ones merge; the current form is never lost", async () => {
@@ -415,7 +435,6 @@ describe("POS — action button sizes", () => {
 describe("POS — order details", () => {
   it("delivery fields appear for delivery only; a dine-in order never sends them", async () => {
     const user = await openPos();
-    const quotes = recordBodies<QuoteRequest>("*/api/orders/quote");
     const created = recordBodies<CreateOrderRequest>("*/api/orders");
     await addProduct(user, "Water");
     await expectTotal("0.500");
@@ -428,20 +447,18 @@ describe("POS — order details", () => {
     await user.type(within(cart()).getByRole("textbox", { name: /Delivery address/ }), "Building 5, Street 9");
     await user.type(within(cart()).getByRole("textbox", { name: /Delivery fee/ }), "1.5");
     await expectTotal("2.000");
-    expect(quotes.at(-1)).toEqual({ items: [{ variantId: 100, quantity: 1 }], delivery: { price: "1.5" } });
     expect(summaryValue("Delivery fee")).toHaveTextContent("1.500 JOD");
 
-    // Back to dine-in: the typed address and fee stay hidden and are not sent (the dine-in price is the cached quote).
-    const sentBefore = quotes.length;
+    // Back to dine-in: the typed address and fee stay hidden, are not priced and are not sent.
     await user.click(within(cart()).getByRole("radio", { name: "Dine-in" }));
     await expectTotal("0.500");
     expect(within(cart()).queryByRole("textbox", { name: /Delivery address/ })).not.toBeInTheDocument();
-    expect(quotes.slice(sentBefore).filter((quote) => "delivery" in quote)).toEqual([]);
+    expect(within(cart()).queryByText("Delivery fee")).not.toBeInTheDocument();
 
     const dialog = await payWith(user, "Visa");
     await user.click(within(dialog).getByRole("button", { name: /^Confirm payment/ }));
     await screen.findByRole("heading", { name: "Order created" });
-    expect(created).toEqual([{ items: [{ variantId: 100, quantity: 1 }], paymentMethod: "VISA" }]);
+    expect(created).toEqual([{ items: [{ variantId: 100, quantity: 1 }], paymentMethod: "VISA", expectedTotal: "0.500" }]);
   });
 
   it("delivery: the fee must be a valid amount; the time picker value is sent as printed text", async () => {
@@ -490,7 +507,7 @@ describe("POS — order details", () => {
     await expectTotal("1.500");
   });
 
-  it("the discount is a percentage; the backend computes the amount", async () => {
+  it("the discount is a percentage; the amount is rounded half up like the backend", async () => {
     const user = await openPos();
     await addProduct(user, "Margherita", async (dialog) => user.click(within(dialog).getByRole("radio", { name: /Large/ })));
     await addProduct(user, "Water");
@@ -563,55 +580,99 @@ describe("POS — order details", () => {
   });
 });
 
-describe("POS — prices from the backend quote", () => {
-  it("a late response for an older cart never replaces the current price, and checkout waits for the current one", async () => {
+describe("POS — local pricing; the backend checks the total (D77)", () => {
+  const catalogResponse = (catalog: CatalogCategory[]) => HttpResponse.json({ response: catalog, message: "Catalog fetched." });
+  /** The mock catalog with Margherita Medium at another price (the backend still charges 4.000). */
+  const withMargheritaPrice = (price: string) => {
+    const catalog = structuredClone(MOCK_CATALOG);
+    catalog[0].products[0].variants[0].price = price;
+    return catalog;
+  };
+
+  it("totals change at once and nothing is requested until the order is created", async () => {
     const user = await openPos();
-    let releaseFirst = () => {};
-    const quotes: QuoteRequest[] = [];
-    server.use(
-      http.post("*/api/orders/quote", async ({ request }) => {
-        const body = (await request.clone().json()) as QuoteRequest;
-        quotes.push(body);
-        if (body.items[0].quantity === 2) await new Promise<void>((resolve) => (releaseFirst = resolve));
-      })
-    );
+    const requests: string[] = [];
+    const record = ({ request }: { request: Request }) => requests.push(`${request.method} ${new URL(request.url).pathname}`);
+    server.events.on("request:start", record);
+    try {
+      await addProduct(user, "Margherita", async (dialog) => {
+        await user.click(within(dialog).getByRole("checkbox", { name: /Extra Basil/ }));
+        await user.click(within(dialog).getByRole("button", { name: "Add another configuration" }));
+        await user.click(within(dialog).getByRole("radio", { name: /Large/ }));
+        await user.click(within(dialog).getByRole("button", { name: "Add all to order" }));
+      }).catch(() => undefined);
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Margherita" })).not.toBeInTheDocument());
+      // No waiting: each change shows its price immediately.
+      expect(checkout()).toHaveAccessibleName("Checkout · 10.000 JOD");
+      await user.click(within(cart()).getAllByRole("button", { name: "One more Margherita" })[1]);
+      expect(checkout()).toHaveAccessibleName("Checkout · 15.000 JOD");
+      await user.type(within(cart()).getByRole("textbox", { name: /Discount/ }), "10");
+      expect(checkout()).toHaveAccessibleName("Checkout · 13.500 JOD");
+      await user.click(within(cart()).getByRole("radio", { name: "Delivery" }));
+      await user.type(within(cart()).getByRole("textbox", { name: /Delivery address/ }), "Building 5");
+      await user.type(within(cart()).getByRole("textbox", { name: /Delivery fee/ }), "1.250");
+      expect(checkout()).toHaveAccessibleName("Checkout · 14.750 JOD");
+      expect(requests).toEqual([]);
 
-    await addProduct(user, "Water");
-    await expectTotal("0.500");
-    await user.click(within(cart()).getByRole("button", { name: "One more Water" }));
-    await waitFor(() => expect(quotes.some((quote) => quote.items[0].quantity === 2)).toBe(true));
-    expect(checkout()).toBeDisabled(); // the price of 2 waters has not arrived
-
-    await user.click(within(cart()).getByRole("button", { name: "One more Water" }));
-    expect(checkout()).toBeDisabled();
-    await expectTotal("1.500");
-
-    await act(async () => {
-      releaseFirst();
-      await delay(50);
-    });
-    expect(checkout()).toHaveAccessibleName("Checkout · 1.500 JOD");
-    expect(checkout()).toBeEnabled();
+      const payment = await payWith(user, "Cash", "20");
+      expect(within(payment).getByText("Change").nextSibling).toHaveTextContent("5.250 JOD");
+      await user.click(within(payment).getByRole("button", { name: /^Confirm payment/ }));
+      await screen.findByRole("heading", { name: "Order created" });
+      expect(requests).toEqual(["POST /api/orders"]);
+    } finally {
+      server.events.removeListener("request:start", record);
+    }
   });
 
-  it("a refused quote is explained, blocks checkout, and can be retried", async () => {
+  it("a price changed after the menu was loaded: nothing is created, the new total is shown, the cashier confirms again", async () => {
+    server.use(http.get("*/api/catalog", () => catalogResponse(withMargheritaPrice("3.500")), { once: true }));
     const user = await openPos();
-    let refuse = true;
-    server.use(
-      http.post("*/api/orders/quote", () => {
-        if (refuse) return appError(422, "ADDON_NOT_AVAILABLE", "Add-on 2 is not available for Margherita.", { addOnId: 2, variantId: 101 });
-      })
-    );
-    await addProduct(user, "Water");
-    const alert = await within(cart()).findByRole("alert");
-    expect(alert).toHaveTextContent("Prices could not be calculated.");
-    expect(alert).toHaveTextContent("An add-on is no longer available for one of the items.");
-    expect(checkout()).toBeDisabled();
+    const created = recordBodies<CreateOrderRequest>("*/api/orders");
+    await addProduct(user, "Margherita");
+    await expectTotal("3.500");
 
-    refuse = false;
-    await user.click(within(alert).getByRole("button", { name: "Try again" }));
-    await expectTotal("0.500");
-    expect(within(cart()).queryByRole("alert")).not.toBeInTheDocument();
+    const dialog = await payWith(user, "Visa");
+    await user.click(within(dialog).getByRole("button", { name: /^Confirm payment/ }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Prices changed since the menu was loaded. The total is now 4.000 JOD. Check it with the customer and confirm again."
+    );
+    expect(store.listOrders({ pageSize: 10 }).items).toHaveLength(0);
+    // The menu is reloaded, so every amount shows the current price; nothing is sent again by itself.
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: /^Confirm payment/ })).toHaveAccessibleName("Confirm payment · 4.000 JOD"));
+    expect(cartLines()[0]).toHaveTextContent("4.000 JOD");
+    expect(created).toHaveLength(1);
+
+    await user.click(within(dialog).getByRole("button", { name: /^Confirm payment/ }));
+    await screen.findByRole("heading", { name: "Order created" });
+    expect(screen.getByText("Order #1")).toBeInTheDocument();
+    expect(created.map((body) => body.expectedTotal)).toEqual(["3.500", "4.000"]);
+    expect(store.listOrders({ pageSize: 10 }).items).toHaveLength(1);
+  });
+
+  it("an item the reloaded menu no longer sells is marked and blocks checkout until it is removed", async () => {
+    const withoutWater = structuredClone(MOCK_CATALOG);
+    for (const category of withoutWater) category.products = category.products.filter((product) => product.nameEn !== "Water");
+    server.use(http.get("*/api/catalog", () => catalogResponse(withoutWater)));
+    server.use(http.get("*/api/catalog", () => catalogResponse(withMargheritaPrice("3.500")), { once: true }));
+    const user = await openPos();
+    await addProduct(user, "Margherita");
+    await addProduct(user, "Water");
+    await expectTotal("4.000");
+
+    const dialog = await payWith(user, "Visa");
+    await user.click(within(dialog).getByRole("button", { name: /^Confirm payment/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Payment" })).not.toBeInTheDocument());
+    expect(cartLines()[1]).toHaveTextContent("Unavailable");
+    expect(within(cart()).getByText("An item is no longer on the menu. Remove it to continue.")).toBeInTheDocument();
+    expect(checkout()).toBeDisabled();
+    expect(store.listOrders({ pageSize: 10 }).items).toHaveLength(0);
+
+    expect(cartLines()[1]).toHaveTextContent("Water");
+    await user.click(within(cart()).getByRole("button", { name: "Remove Water" }));
+    await expectTotal("4.000");
+    const payment = await payWith(user, "Visa");
+    await user.click(within(payment).getByRole("button", { name: /^Confirm payment/ }));
+    expect(await screen.findByRole("heading", { name: "Order created" })).toBeInTheDocument();
   });
 });
 

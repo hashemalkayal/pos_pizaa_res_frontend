@@ -35,6 +35,11 @@ export interface CreateOrderRequest extends QuoteRequest {
   paymentMethod: PaymentMethod;
   customerId?: number | null;
   customer?: { name: string; phone: string } | null;
+  /**
+   * The total shown to the cashier (D77), never used as a price. When the server total differs, nothing is
+   * created: 409 PRICE_MISMATCH with `details: { expectedTotal, pricing }` (pricing: an OrderQuote).
+   */
+  expectedTotal?: Money;
 }
 
 /** A priced line: the product, variant, unit, options and add-ons as they were when the line was saved. */
@@ -128,12 +133,12 @@ export interface OrderListQuery {
   pageSize?: number;
 }
 
-/** Server-authoritative prices and totals for a cart (nothing is saved). */
+/** Server-authoritative prices and totals for a cart (nothing is saved). The POS prices locally and does not call it. */
 export const quoteOrder = async (body: QuoteRequest, signal?: AbortSignal): Promise<OrderQuote> =>
   unwrap(await http.post<ApiEnvelope<OrderQuote>>("/orders/quote", body, { signal }));
 
 /**
- * Creates and prints a POS order (201). The backend has no idempotency for POS orders, so the UI must block
+ * Creates and prints a POS order (201); 409 PRICE_MISMATCH when `expectedTotal` differs from the server total. The backend has no idempotency for POS orders, so the UI must block
  * a second submit while the first is pending. A print failure never undoes the order (kitchenPrint FAILED).
  */
 export const createOrder = async (body: CreateOrderRequest): Promise<Order> =>

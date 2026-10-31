@@ -1,5 +1,3 @@
-import type { OrderLine } from "@/api/v2/orders";
-
 /**
  * The in-progress cart (client state). Prices are never stored here: every total shown to the cashier comes
  * from the backend quote (POST /api/orders/quote). Limits follow the backend's order schema.
@@ -98,14 +96,6 @@ export const canAddLines = (lines: CartLine[], configs: LineConfig[]) => {
     current = cartReducer(current, { type: "add", key: "pending", line: config });
   }
   return true;
-};
-
-/** The quote line priced for this exact configuration (same position in the request), if the quote has it. */
-export const quoteLineFor = (line: LineConfig, quoteLine: OrderLine | undefined) => {
-  if (!quoteLine || quoteLine.variantId !== line.variantId || quoteLine.quantity !== line.quantity) return undefined;
-  const ids = quoteLine.addOns.map((addOn) => addOn.addOnId).sort((a, b) => a - b);
-  if (ids.length !== line.addOnIds.length || ids.some((id, index) => id !== line.addOnIds[index])) return undefined;
-  return (quoteLine.comment ?? null) === line.comment ? quoteLine : undefined;
 };
 
 export const itemCount = (lines: CartLine[]) => lines.reduce((total, line) => total + line.quantity, 0);

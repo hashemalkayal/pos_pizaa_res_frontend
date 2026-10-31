@@ -1,7 +1,7 @@
 import type { Customer } from "@/api/v2/customers";
-import type { CreateOrderRequest, DeliveryInput, OrderLineInput, PaymentMethod, QuoteRequest } from "@/api/v2/orders";
+import type { CreateOrderRequest, DeliveryInput, OrderLineInput, PaymentMethod } from "@/api/v2/orders";
 import { isMoneyInput, isPercentInput } from "@/lib/money";
-import type { CartLine, LineConfig } from "./cart";
+import type { LineConfig } from "./cart";
 import { formatDeliveryTime, isTimePickerValue } from "./deliveryTime";
 
 /**
@@ -19,7 +19,7 @@ export interface OrderDraft {
    * is partly typed (e.g. no AM/PM yet); `fee` is typed by the cashier.
    */
   delivery: { location: string; time: string; timeIncomplete: boolean; fee: string };
-  /** 0–100, at most 2 decimals; "" means no discount. Percentage only: the server computes the amount. */
+  /** 0–100, at most 2 decimals; "" means no discount. Percentage only: the amount follows from the subtotal. */
   discountPercent: string;
 }
 
@@ -33,6 +33,9 @@ export const EMPTY_DRAFT: OrderDraft = {
 export const MAX_LOCATION_LENGTH = 500;
 
 export type DraftProblem = "deliveryLocationRequired" | "deliveryFeeRequired" | "deliveryFeeInvalid" | "deliveryTimeInvalid" | "discountInvalid";
+
+/** What prevents checkout: the draft's problems, or a cart line the catalog no longer sells. */
+export type CheckoutProblem = DraftProblem | "itemUnavailable";
 
 /** What prevents checkout, in the order the fields appear. */
 export const draftProblems = (draft: OrderDraft): DraftProblem[] => {
@@ -62,7 +65,7 @@ const discountOf = (draft: OrderDraft): string | undefined => {
   return value && isPercentInput(value) && Number(value) > 0 ? value : undefined;
 };
 
-/** Delivery only; the fee is included once it is a valid amount (the quote updates as the cashier types). */
+/** Delivery only; the fee counts once it is a valid amount (the totals update as the cashier types). */
 const deliveryOf = (draft: OrderDraft): DeliveryInput | undefined => {
   if (draft.serviceType !== "DELIVERY") return undefined;
   const fee = draft.delivery.fee.trim();
@@ -73,23 +76,18 @@ const deliveryOf = (draft: OrderDraft): DeliveryInput | undefined => {
   };
 };
 
-/**
- * The pricing request for the current cart, or null when there is nothing to price. Checkout uses the same
- * lines, discount and delivery fee, so a quote for exactly this request is the price of the order.
- */
-export const buildQuoteRequest = (lines: CartLine[], draft: OrderDraft): QuoteRequest | null => {
-  if (!lines.length) return null;
+/** The discount and delivery fee that count for the price: exactly what checkout sends (valid values only). */
+export const pricingAdjustments = (draft: OrderDraft): { discountPercent?: string; deliveryPrice?: string } => {
   const discountPercent = discountOf(draft);
-  const delivery = deliveryOf(draft);
-  return {
-    items: lineInputs(lines),
-    ...(discountPercent ? { discountPercent } : {}),
-    ...(delivery?.price ? { delivery: { price: delivery.price } } : {}),
-  };
+  const deliveryPrice = deliveryOf(draft)?.price;
+  return { ...(discountPercent ? { discountPercent } : {}), ...(deliveryPrice ? { deliveryPrice } : {}) };
 };
 
-/** POST /api/orders body. Dine-in never carries delivery values; the customer is optional. */
-export const buildCreateOrderRequest = (lines: CartLine[], draft: OrderDraft, paymentMethod: PaymentMethod): CreateOrderRequest => {
+/**
+ * POST /api/orders body. Dine-in never carries delivery values; the customer is optional. `expectedTotal` is the
+ * total shown to the cashier (local pricing): the backend refuses the order if its own total differs (D77).
+ */
+export const buildCreateOrderRequest = (lines: LineConfig[], draft: OrderDraft, paymentMethod: PaymentMethod, expectedTotal: string): CreateOrderRequest => {
   const discountPercent = discountOf(draft);
   const delivery = deliveryOf(draft);
   return {
@@ -98,8 +96,6 @@ export const buildCreateOrderRequest = (lines: CartLine[], draft: OrderDraft, pa
     ...(draft.customer ? { customerId: draft.customer.id } : {}),
     ...(delivery ? { delivery } : {}),
     ...(discountPercent ? { discountPercent } : {}),
+    expectedTotal,
   };
 };
-
-/** Stable identity of a quote request (key of the quote query, and the check that a quote is current). */
-export const quoteKey = (request: QuoteRequest | null) => (request ? JSON.stringify(request) : null);

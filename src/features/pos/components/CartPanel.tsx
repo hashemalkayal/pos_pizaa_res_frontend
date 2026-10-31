@@ -1,13 +1,10 @@
 import { memo } from "react";
 import {
   ActionIcon,
-  Alert,
   Button,
   Group,
-  Loader,
   ScrollArea,
   SegmentedControl,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -25,29 +22,28 @@ import {
 import { useTranslation } from "react-i18next";
 import { CurrencyText } from "@/components/money/CurrencyText";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { itemCount, quoteLineFor, type CartLine } from "../model/cart";
+import { fromFils } from "@/lib/money";
+import { itemCount, type CartLine } from "../model/cart";
 import { selectedAddOns, type CatalogIndex } from "../model/catalogView";
 import {
   MAX_LOCATION_LENGTH,
-  type DraftProblem,
+  type CheckoutProblem,
   type OrderDraft,
   type ServiceType,
 } from "../model/orderDraft";
-import type { QuoteState } from "../hooks/queries";
+import type { CartPricing } from "../model/pricing";
 import { useLocalized } from "../hooks/useLocalized";
 import { CustomerPicker } from "./CustomerPicker";
 import { DecimalInput } from "./DecimalInput";
 import { DeliveryTimeInput } from "./DeliveryTimeInput";
 import { QuantityStepper } from "./QuantityStepper";
-import { quoteErrorKey } from "./quoteErrors";
 import classes from "../Pos.module.css";
 
 interface CartLineRowProps {
   line: CartLine;
   index: CatalogIndex | null;
-  /** Backend line total; null while it is not known for this exact line. */
+  /** Line total from local pricing; null when the catalog no longer sells this line. */
   lineTotal: string | null;
-  stale: boolean;
   onEdit: (key: string) => void;
   onRemove: (key: string) => void;
   onQuantity: (key: string, quantity: number) => void;
@@ -58,7 +54,6 @@ const CartLineRow = memo(
     line,
     index,
     lineTotal,
-    stale,
     onEdit,
     onRemove,
     onQuantity,
@@ -92,10 +87,12 @@ const CartLineRow = memo(
               value={lineTotal}
               fw={700}
               size="sm"
-              className={`${classes.money} ${stale ? classes.summaryStale : ""}`}
+              className={classes.money}
             />
           ) : (
-            <Skeleton height={14} width={64} radius="sm" />
+            <Text size="xs" fw={700} c="red.7">
+              {t("pos.cart.unavailable")}
+            </Text>
           )}
         </div>
         <div className={classes.lineBottom}>
@@ -115,6 +112,7 @@ const CartLineRow = memo(
                 size="action"
                 variant="subtle"
                 color="charcoal"
+                disabled={!lineTotal}
                 onClick={() => onEdit(line.key)}
                 aria-label={t("pos.cart.edit", { name: productName })}
               >
@@ -143,9 +141,10 @@ CartLineRow.displayName = "CartLineRow";
 interface CartPanelProps {
   lines: CartLine[];
   index: CatalogIndex | null;
-  quote: QuoteState;
+  /** Local pricing of the cart (instant); null until the catalog is loaded. */
+  pricing: CartPricing | null;
   draft: OrderDraft;
-  problems: DraftProblem[];
+  problems: CheckoutProblem[];
   canCheckout: boolean;
   /** Narrow screens: the cart is a bottom sheet. */
   open: boolean;
@@ -162,7 +161,7 @@ interface CartPanelProps {
 export const CartPanel = ({
   lines,
   index,
-  quote,
+  pricing,
   draft,
   problems,
   canCheckout,
@@ -177,11 +176,7 @@ export const CartPanel = ({
   onCheckout,
 }: CartPanelProps) => {
   const { t } = useTranslation();
-  const shownQuote =
-    quote.status === "current" || quote.status === "updating"
-      ? quote.quote
-      : null;
-  const stale = quote.status !== "current";
+  const totals = lines.length ? pricing?.totals : undefined;
   const count = itemCount(lines);
 
   return (
@@ -271,14 +266,13 @@ export const CartPanel = ({
               aria-label={t("pos.cart.title")}
             >
               {lines.map((line, position) => {
-                const quoted = quoteLineFor(line, shownQuote?.items[position]);
+                const priced = pricing?.lines[position];
                 return (
                   <CartLineRow
                     key={line.key}
                     line={line}
                     index={index}
-                    lineTotal={quoted?.lineTotal ?? null}
-                    stale={stale}
+                    lineTotal={priced ? fromFils(priced.lineTotalFils) : null}
                     onEdit={onEditLine}
                     onRemove={onRemoveLine}
                     onQuantity={onQuantity}
@@ -362,29 +356,25 @@ export const CartPanel = ({
       </ScrollArea>
 
       <div className={classes.cartFooter}>
-        {shownQuote ? (
-          <Stack
-            gap={4}
-            className={stale ? classes.summaryStale : undefined}
-            aria-live="polite"
-          >
+        {totals ? (
+          <Stack gap={4} aria-live="polite">
             <div className={classes.summaryRow}>
               <Text size="sm">{t("pos.summary.subtotal")}</Text>
               <CurrencyText
-                value={shownQuote.subtotal}
+                value={fromFils(totals.subtotalFils)}
                 size="sm"
                 className={classes.money}
               />
             </div>
-            {Number(shownQuote.discountPercent) > 0 ? (
+            {Number(totals.discountPercent) > 0 ? (
               <div className={classes.summaryRow}>
                 <Text size="sm">
                   {t("pos.summary.discount", {
-                    percent: shownQuote.discountPercent.replace(/\.?0+$/, ""),
+                    percent: totals.discountPercent.replace(/\.?0+$/, ""),
                   })}
                 </Text>
                 <Text size="sm" className={classes.money}>
-                  − <CurrencyText value={shownQuote.discountAmount} inherit />
+                  − <CurrencyText value={fromFils(totals.discountFils)} inherit />
                 </Text>
               </div>
             ) : null}
@@ -392,7 +382,7 @@ export const CartPanel = ({
               <div className={classes.summaryRow}>
                 <Text size="sm">{t("pos.summary.delivery")}</Text>
                 <CurrencyText
-                  value={shownQuote.deliveryPrice}
+                  value={fromFils(totals.deliveryFils)}
                   size="sm"
                   className={classes.money}
                 />
@@ -401,39 +391,12 @@ export const CartPanel = ({
             <div className={`${classes.summaryRow} ${classes.summaryTotal}`}>
               <span>{t("pos.summary.total")}</span>
               <CurrencyText
-                value={shownQuote.totalAmount}
+                value={fromFils(totals.totalFils)}
                 inherit
                 className={classes.money}
               />
             </div>
           </Stack>
-        ) : null}
-        {quote.status === "updating" || quote.status === "loading" ? (
-          <Group gap="xs" c="dimmed">
-            <Loader size={14} />
-            <Text size="xs">{t("pos.summary.updating")}</Text>
-          </Group>
-        ) : null}
-        {quote.status === "error" ? (
-          <Alert
-            color="red"
-            variant="light"
-            p="xs"
-            title={t("pos.summary.error")}
-            role="alert"
-          >
-            <Group justify="space-between" gap="xs">
-              <Text size="xs">{t(quoteErrorKey(quote.error))}</Text>
-              <Button
-                size="action-compact"
-                variant="white"
-                color="red"
-                onClick={quote.retry}
-              >
-                {t("pos.summary.retry")}
-              </Button>
-            </Group>
-          </Alert>
         ) : null}
         {lines.length && problems.length ? (
           <Stack gap={2} role="status">
@@ -453,10 +416,10 @@ export const CartPanel = ({
           {/* One inline span: the button label is a flex box, which would drop the spaces around "·". */}
           <span>
             {t("pos.cart.checkout")}
-            {quote.status === "current" ? (
+            {totals && pricing?.complete ? (
               <>
                 {" · "}
-                <CurrencyText value={quote.quote.totalAmount} inherit />
+                <CurrencyText value={fromFils(totals.totalFils)} inherit />
               </>
             ) : null}
           </span>
