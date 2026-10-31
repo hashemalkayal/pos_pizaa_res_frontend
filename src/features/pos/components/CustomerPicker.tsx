@@ -75,12 +75,15 @@ const NewCustomerModal = ({ opened, initialQuery, onClose, onSelect }: NewCustom
 };
 
 interface CustomerPickerProps {
-  customer: Customer | null;
+  /** The linked customer (an order carries id, name and phone only). */
+  customer: Pick<Customer, "id" | "name" | "phone"> | null;
   onChange: (customer: Customer | null) => void;
+  /** False where customers must not be created (the Orders tab links existing customers only). */
+  allowCreate?: boolean;
 }
 
 /** Optional customer: search by name or phone, select, change, remove, or create a new one. */
-export const CustomerPicker = ({ customer, onChange }: CustomerPickerProps) => {
+export const CustomerPicker = ({ customer, onChange, allowCreate = true }: CustomerPickerProps) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -177,13 +180,15 @@ export const CustomerPicker = ({ customer, onChange }: CustomerPickerProps) => {
             </Combobox.Options>
           </Combobox.Dropdown>
         </Combobox>
+        {allowCreate ? (
         <Tooltip label={t("pos.customer.new")}>
           <ActionIcon size="action" variant="default" onClick={() => setCreating(true)} aria-label={t("pos.customer.new")}>
             <IconUserPlus size={18} />
           </ActionIcon>
         </Tooltip>
+        ) : null}
       </Group>
-      {creating ? <NewCustomerModal opened initialQuery={query} onClose={() => setCreating(false)} onSelect={select} /> : null}
+      {creating && allowCreate ? <NewCustomerModal opened initialQuery={query} onClose={() => setCreating(false)} onSelect={select} /> : null}
     </>
   );
 };

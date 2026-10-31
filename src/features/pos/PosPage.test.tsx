@@ -745,7 +745,7 @@ describe("POS — payment and order creation", () => {
     await waitFor(() => expect(search()).toHaveFocus());
   });
 
-  it("View order opens the saved order (read-only)", async () => {
+  it("View order opens the saved order in the Orders tab drawer", async () => {
     const user = await openPos();
     await addProduct(user, "Margherita", async (dialog) => {
       await user.click(within(dialog).getByRole("checkbox", { name: /Extra Basil/ }));
@@ -757,17 +757,17 @@ describe("POS — payment and order creation", () => {
     await user.click(within(dialog).getByRole("button", { name: /^Confirm payment/ }));
     await user.click(await screen.findByRole("button", { name: "View order" }));
 
-    expect(await screen.findByRole("heading", { name: "Order #1" })).toBeInTheDocument();
+    const drawer = await screen.findByRole("dialog", { name: /^Order #1/ }, { timeout: 5000 });
     expect(currentPathname()).toBe("/orders/1");
-    const table = screen.getByRole("table");
-    expect(table).toHaveTextContent("1 × Margherita");
-    expect(table).toHaveTextContent("Medium · Regular · + Extra Basil");
-    expect(table).toHaveTextContent("Note: well done");
-    expect(screen.getByText("Discount (10%)").nextSibling).toHaveTextContent("− 0.500 JOD");
-    expect(screen.getByText("Dine-in")).toBeInTheDocument();
-    expect(screen.getByText("Visa")).toBeInTheDocument();
+    const items = within(drawer).getByRole("region", { name: "Items" });
+    expect(items).toHaveTextContent("1 × Margherita");
+    expect(items).toHaveTextContent("Medium · Regular · + Extra Basil");
+    expect(items).toHaveTextContent("Note: well done");
+    expect(within(drawer).getByText("Discount (10%)").nextSibling).toHaveTextContent("− 0.500 JOD");
+    expect(within(drawer).getByText("Dine-in")).toBeInTheDocument();
+    expect(within(drawer).getByText("Visa")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "Back to POS" }));
+    await user.click(screen.getByRole("link", { name: /POS/ }));
     await screen.findByRole("button", { name: /^Margherita/ });
     expect(cartLines()).toHaveLength(0);
   });

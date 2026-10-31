@@ -264,13 +264,12 @@
     }
   },
   "order": {
-    "back": "Back to POS",
     "loading": "Loading the order…",
     "notFound": "This order does not exist.",
     "title": "Order #{{number}}",
     "status": {
       "ACTIVE": "Active",
-      "VOIDED": "Voided"
+      "VOIDED": "Cancelled"
     },
     "type": {
       "POS": "POS",
@@ -297,5 +296,54 @@
       "FAILED": "Printing failed"
     },
     "newOrder": "New order"
+  },
+  "orders": {
+    "searchLabel": "Search by order number",
+    "searchPlaceholder": "Order number",
+    "clearSearch": "Clear search",
+    "status": "Status",
+    "statusAll": "All statuses",
+    "date": "Date",
+    "datePlaceholder": "Any date",
+    "service": "Order type",
+    "serviceAll": "All",
+    "serviceType": {
+      "DINE_IN": "Dine-in",
+      "DELIVERY": "Delivery"
+    },
+    "clearFilters": "Clear filters",
+    "count_one": "{{count}} order",
+    "count_other": "{{count}} orders",
+    "loading": "Loading orders…",
+    "empty": "No orders yet.",
+    "emptyFiltered": "No orders match the search and filters.",
+    "noPayment": "—",
+    "pagination": {
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page"
+    },
+    "customerHint": "Link an existing customer or remove the link. Prices, payment and items do not change.",
+    "unsaved": "Customer change not saved yet.",
+    "save": "Save changes",
+    "reprint": "Reprint",
+    "cancel": "Cancel order",
+    "readOnly": "This order is cancelled. It can no longer be changed or reprinted.",
+    "cancelTitle": "Cancel order #{{number}}?",
+    "cancelBody": "The order stays in the list but no longer counts in sales. This cannot be undone, and no money is refunded automatically.",
+    "cancelReason": "Reason (optional)",
+    "cancelKeep": "Keep order",
+    "cancelConfirm": "Cancel order",
+    "saved": "Customer updated.",
+    "printed": "Sent to the printer.",
+    "cancelled": "Order #{{number}} cancelled.",
+    "errors": {
+      "PRINT_FAILED": "The printer did not confirm the print. Check the printer and try again.",
+      "ORDER_VOIDED": "This order has been cancelled. It is shown as it is now.",
+      "ORDER_VERSION_CONFLICT": "This order was changed elsewhere. It has been reloaded — check it and try again.",
+      "CUSTOMER_NOT_FOUND": "That customer no longer exists. Choose another one."
+    },
+    "close": "Close"
   }
 }

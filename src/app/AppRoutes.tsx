@@ -15,7 +15,7 @@ const PublicMenu = lazy(() => import("@/public-site/Menu"));
 
 // Staff screens with their own chunks.
 const PosPage = lazy(() => import("@/features/pos/PosPage"));
-const OrderDetailsPage = lazy(() => import("@/features/orders/OrderDetailsPage"));
+const OrdersPage = lazy(() => import("@/features/orders/OrdersPage"));
 const lazyPage = (page: ReactNode) => <Suspense fallback={<LoadingState />}>{page}</Suspense>;
 
 export const AppRoutes = () => (
@@ -37,10 +37,12 @@ export const AppRoutes = () => (
       >
         <Route index element={<Navigate to="/pos" replace />} />
         {APP_SECTIONS.map((section) => {
-          const page = section.id === "pos" ? lazyPage(<PosPage />) : <PlannedSectionPage section={section} />;
-          return <Route key={section.id} path={section.path} element={section.adminOnly ? <AdminOnly>{page}</AdminOnly> : page} />;
+          const page =
+            section.id === "pos" ? lazyPage(<PosPage />) : section.id === "orders" ? lazyPage(<OrdersPage />) : <PlannedSectionPage section={section} />;
+          // The Orders tab opens an order in its drawer at /orders/:orderId: one route, so the list keeps its state.
+          const path = section.id === "orders" ? `${section.path}/:orderId?` : section.path;
+          return <Route key={section.id} path={path} element={section.adminOnly ? <AdminOnly>{page}</AdminOnly> : page} />;
         })}
-        <Route path="/orders/:orderId" element={lazyPage(<OrderDetailsPage />)} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>

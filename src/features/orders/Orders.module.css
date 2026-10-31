@@ -1,0 +1,227 @@
+/* Orders tab: search and filters, a grid of order cards, pagination, and the order drawer. */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.search {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+.filter {
+  flex: 0 1 200px;
+  min-width: 160px;
+}
+
+.serviceFilter {
+  flex: 0 0 auto;
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+  .search,
+  .filter,
+  .serviceFilter {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+  transition: opacity 120ms ease;
+
+  &[data-stale] {
+    opacity: 0.6;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 148px;
+  padding: 14px 16px;
+  border: 1px solid var(--ep-border);
+  border-radius: var(--mantine-radius-lg);
+  background-color: var(--ep-card);
+  color: var(--ep-charcoal);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+
+  &:hover {
+    border-color: var(--ep-yellow);
+    box-shadow: 0 6px 18px rgba(35, 31, 32, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ep-yellow);
+    outline-offset: 2px;
+  }
+
+  &[data-cancelled] {
+    background-color: var(--ep-muted);
+  }
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardNumber {
+  font-weight: 800;
+  font-size: var(--mantine-font-size-lg);
+}
+
+.cardDate {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.cardCustomer {
+  overflow: hidden;
+  font-weight: 600;
+  font-size: var(--mantine-font-size-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  &[data-empty] {
+    color: var(--mantine-color-dimmed);
+    font-weight: 500;
+    font-style: italic;
+  }
+}
+
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cardTotal {
+  font-size: var(--mantine-font-size-lg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pagination {
+  align-self: center;
+}
+
+/* Drawer: the title and the action footer stay in place; only the details scroll. */
+.drawerContent {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawerBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+.drawerLayout {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.drawerScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px var(--mantine-spacing-md) var(--mantine-spacing-md);
+}
+
+.drawerFooter {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  border-top: 1px solid var(--ep-border);
+  background: var(--mantine-color-body);
+}
+
+.saveButton {
+  margin-inline-start: auto;
+}
+
+.dialogTitle {
+  font-size: var(--mantine-h3-font-size);
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px 16px;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: 10px 12px;
+  border: 1px solid var(--ep-border);
+  border-radius: var(--mantine-radius-md);
+}
+
+.itemTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.summaryTotal {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ep-border);
+  font-weight: 800;
+  font-size: var(--mantine-font-size-lg);
+}
+
+.money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

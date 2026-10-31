@@ -82,6 +82,9 @@ export interface OrderQuote extends OrderTotals {
   items: OrderLine[];
 }
 
+export type ServiceType = "DINE_IN" | "DELIVERY";
+export type OrderStatus = "ACTIVE" | "VOIDED";
+
 export type OrderCreator = { type: "USER" | "API_CLIENT"; id: number; name: string | null };
 export type StaffRef = { id: number; name: string } | null;
 
@@ -102,10 +105,13 @@ export interface Order extends OrderTotals {
   createdAt: string;
   /** YYYY-MM-DD */
   businessDate: string;
-  status: "ACTIVE" | "VOIDED";
+  /** VOIDED = cancelled (soft, permanent). */
+  status: OrderStatus;
   customer: { id: number; name: string; phone: string } | null;
   paymentMethod: PaymentMethod | null;
   delivery: { location: string | null; time: string | null };
+  /** Derived by the backend (D78): DELIVERY when the order has delivery details, otherwise DINE_IN. */
+  serviceType: ServiceType;
   items: OrderLine[];
   updatedBy: StaffRef;
   voidedBy: StaffRef;
@@ -125,11 +131,16 @@ export interface Page<T> {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
-/** GET /api/orders filters used by the POS (backend: orderListQuery). */
+/** GET /api/orders filters used by the POS and the Orders tab (backend: orderListQuery). Newest first. */
 export interface OrderListQuery {
+  orderNumber?: number;
+  /** YYYY-MM-DD */
   businessDate?: string;
+  status?: OrderStatus;
+  service?: ServiceType;
   createdByUserId?: number;
   type?: "POS" | "EXTERNAL";
+  page?: number;
   pageSize?: number;
 }
 
@@ -146,6 +157,22 @@ export const createOrder = async (body: CreateOrderRequest): Promise<Order> =>
 
 export const getOrder = async (id: number, signal?: AbortSignal): Promise<Order> =>
   unwrap(await http.get<ApiEnvelope<Order>>(`/orders/${id}`, { signal }));
+
+/**
+ * PATCH /api/orders/:id with the customer only: links another existing customer, or none (null). Items, prices,
+ * totals, payment and status are unchanged and nothing is printed. 409 ORDER_VOIDED for a cancelled order,
+ * 409 ORDER_VERSION_CONFLICT when the order changed meanwhile, 422 CUSTOMER_NOT_FOUND.
+ */
+export const updateOrderCustomer = async (id: number, version: number, customerId: number | null): Promise<Order> =>
+  unwrap(await http.patch<ApiEnvelope<Order>>(`/orders/${id}`, { version, customerId }));
+
+/** POST /api/orders/:id/void — cancels the order (soft and permanent; status VOIDED). The reason is optional. */
+export const voidOrder = async (id: number, version: number, reason: string | null): Promise<Order> =>
+  unwrap(await http.post<ApiEnvelope<Order>>(`/orders/${id}/void`, { version, ...(reason ? { reason } : {}) }));
+
+/** POST /api/orders/:id/print — reprints the saved order (FULL); 502 PRINT_FAILED; 409 ORDER_VOIDED if cancelled. */
+export const reprintOrder = async (id: number): Promise<{ printed: boolean; mode: string }> =>
+  unwrap(await http.post<ApiEnvelope<{ printed: boolean; mode: string }>>(`/orders/${id}/print`, {}));
 
 /** Newest first. */
 export const listOrders = async (query: OrderListQuery, signal?: AbortSignal): Promise<Page<OrderListItem>> =>

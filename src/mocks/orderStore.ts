@@ -325,6 +325,8 @@ export const createOrder = (body: CreateBody, creator: { id: number; name: strin
     customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
     paymentMethod: body.paymentMethod,
     delivery: { location: body.delivery?.location?.trim() ?? null, time: body.delivery?.time?.trim() ?? null },
+    // D78: delivery details (address, time or a charge) make a delivery order.
+    serviceType: body.delivery?.location?.trim() || body.delivery?.time?.trim() || fils(orderTotals.deliveryPrice) > 0 ? "DELIVERY" : "DINE_IN",
     ...orderTotals,
     items: items.map((line) => ({ ...line, id: nextLineId++ })),
     updatedBy: null,
@@ -345,17 +347,81 @@ export const findOrder = (id: number) => {
   return order;
 };
 
-export const listOrders = (query: { createdByUserId?: number; type?: string; businessDate?: string; pageSize: number }) => {
+export const listOrders = (query: {
+  createdByUserId?: number;
+  type?: string;
+  businessDate?: string;
+  orderNumber?: number;
+  status?: string;
+  service?: string;
+  page?: number;
+  pageSize: number;
+}) => {
   const rows: OrderListItem[] = orders
     .filter((order) => query.createdByUserId === undefined || (order.createdBy.type === "USER" && order.createdBy.id === query.createdByUserId))
     .filter((order) => query.type === undefined || order.type === query.type)
     .filter((order) => query.businessDate === undefined || order.businessDate === query.businessDate)
+    .filter((order) => query.orderNumber === undefined || order.orderNumber === query.orderNumber)
+    .filter((order) => query.status === undefined || order.status === query.status)
+    .filter((order) => query.service === undefined || order.serviceType === query.service)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
     .map(({ items, ...header }) => ({ ...header, itemCount: items.length }));
-  return paginate(rows, query.pageSize);
+  return paginate(rows, query.pageSize, query.page);
 };
 
-const paginate = <T>(rows: T[], pageSize: number) => ({
-  items: rows.slice(0, pageSize),
-  pagination: { page: 1, pageSize, total: rows.length, totalPages: Math.max(1, Math.ceil(rows.length / pageSize)) },
+/** Header mutations (backend assertMutable): a cancelled order never changes; a stale version is refused. */
+const mutable = (id: number, version: unknown) => {
+  const order = findOrder(id);
+  if (order.status === "VOIDED") throw new MockError(409, "ORDER_VOIDED", "The order is voided and cannot be changed.");
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 0) {
+    throw new MockError(422, "VALIDATION_ERROR", "The request is invalid.", { errors: [{ field: "version", message: "version is a required field" }] });
+  }
+  if (version !== order.version) throw new MockError(409, "ORDER_VERSION_CONFLICT", "The order was changed by someone else. Reload it and try again.", { currentVersion: order.version });
+  return order;
+};
+const touched = (order: Order) => {
+  order.version += 1;
+  order.updatedAt = new Date().toISOString();
+  order.updatedBy = { id: order.createdBy.id, name: order.createdBy.name ?? "" };
+  return order;
+};
+
+/** PATCH /api/orders/:id with { version, customerId }: only the linked customer changes. */
+export const updateOrderCustomer = (id: number, body: unknown) => {
+  const value = isRecord(body) ? body : {};
+  const notAllowed = Object.keys(value).filter((key) => !["version", "customerId"].includes(key));
+  if (notAllowed.length) throw new MockError(422, "FIELD_NOT_ALLOWED", "The request contains fields that are not allowed.", { fields: notAllowed, errors: [] });
+  const order = mutable(id, value.version);
+  if (value.customerId === undefined) return order;
+  if (value.customerId === null) {
+    order.customer = null;
+  } else {
+    const customer = customers.find((candidate) => candidate.id === value.customerId);
+    if (!customer) throw new MockError(422, "CUSTOMER_NOT_FOUND", `Customer ${String(value.customerId)} does not exist.`);
+    order.customer = { id: customer.id, name: customer.name, phone: customer.phone };
+  }
+  return touched(order);
+};
+
+/** POST /api/orders/:id/void with { version, reason? }: soft and permanent. */
+export const voidOrder = (id: number, body: unknown) => {
+  const value = isRecord(body) ? body : {};
+  const order = mutable(id, value.version);
+  order.status = "VOIDED";
+  order.voidedAt = new Date().toISOString();
+  order.voidReason = typeof value.reason === "string" && value.reason.trim() ? value.reason.trim() : null;
+  order.voidedBy = { id: order.createdBy.id, name: order.createdBy.name ?? "" };
+  return touched(order);
+};
+
+/** POST /api/orders/:id/print: the mocks print nothing; a cancelled order is never reprinted. */
+export const printOrder = (id: number) => {
+  const order = findOrder(id);
+  if (order.status === "VOIDED") throw new MockError(409, "ORDER_VOIDED", "The order is voided and cannot be printed.");
+  return { printed: true, mode: "FULL" };
+};
+
+const paginate = <T>(rows: T[], pageSize: number, page = 1) => ({
+  items: rows.slice((page - 1) * pageSize, page * pageSize),
+  pagination: { page, pageSize, total: rows.length, totalPages: Math.max(1, Math.ceil(rows.length / pageSize)) },
 });

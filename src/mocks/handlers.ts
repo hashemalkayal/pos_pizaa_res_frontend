@@ -136,6 +136,10 @@ export const handlers = [
           createdByUserId: number("createdByUserId"),
           type: url.searchParams.get("type") ?? undefined,
           businessDate: url.searchParams.get("businessDate") ?? undefined,
+          orderNumber: number("orderNumber"),
+          status: url.searchParams.get("status") ?? undefined,
+          service: url.searchParams.get("service") ?? undefined,
+          page: number("page") ?? 1,
           pageSize: pageSizeOf(url),
         }),
         "Orders fetched."
@@ -147,6 +151,26 @@ export const handlers = [
     const auth = authenticate(request);
     if (auth.error) return auth.error;
     return attempt(() => envelope(store.findOrder(routeId(params.id, "ORDER_NOT_FOUND")), "Order fetched."));
+  }),
+
+  http.patch("*/api/orders/:id", async ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(store.updateOrderCustomer(routeId(params.id, "ORDER_NOT_FOUND"), body), "Order updated."));
+  }),
+
+  http.post("*/api/orders/:id/void", async ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    const body = await readJson(request);
+    return attempt(() => envelope(store.voidOrder(routeId(params.id, "ORDER_NOT_FOUND"), body), "Order voided."));
+  }),
+
+  http.post("*/api/orders/:id/print", ({ request, params }) => {
+    const auth = authenticate(request);
+    if (auth.error) return auth.error;
+    return attempt(() => envelope(store.printOrder(routeId(params.id, "ORDER_NOT_FOUND")), "Order sent to printer."));
   }),
 
   http.get("*/api/customers", ({ request }) => {
